@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Course: {{ course.course_name }}</h2>
+
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Roll No</th>
+    <th>Name</th>
+    <th>Grade</th>
+    <th>Action</th>
+  </tr>
+
+  {% for s in students %}
+  <tr>
+    <td>{{ s.roll_no }}</td>
+    <td>{{ s.name }}</td>
+    <td>{{ s.grade if s.grade else '-' }}</td>
+    <td>
+      <form method="POST" style="display:inline;">
+        <input type="hidden" name="enrollment_id" value="{{ s.enrollment_id }}">
+        <input type="text" name="grade" placeholder="A / B / C / 8.5" required>
+        <button type="submit">Save</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<a href="/faculty_dashboard">⬅ Back to Dashboard</a>
+
+{% endblock %}

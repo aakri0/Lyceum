@@ -1,0 +1,72 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background-color: #f9f9f9;
+}
+
+.card {
+  max-width: 400px;
+  margin: 60px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+}
+
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+button {
+  background: #2c7be5;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+nav {
+    background: #004b8d;
+    padding: 10px;
+}
+
+nav a {
+    color: white;
+    margin-right: 15px;
+    text-decoration: none;
+}
+
+.container {
+    margin-top: 30px;
+}
+
+.flash {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.flash.success { background: #c8e6c9; }
+.flash.danger { background: #ffcdd2; }
+.flash.info { background: #bbdefb; }
+
+.info-text {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.resend {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.resend a {
+  color: #2c7be5;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.resend a:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Welcome to the College ERP System</h2>
+<ul>
+  <li><a href="{{ url_for('student_login') }}">Student Login</a></li>
+  <li><a href="{{ url_for('faculty_login') }}">Faculty Login</a></li>
+  <li><a href="{{ url_for('admin_login') }}">Admin Login</a></li>
+</ul>
+{% endblock %}

@@ -1,0 +1,41 @@
+<nav style="padding: 10px; background: #222; display:flex; align-items:center;">
+  <a href="/" style="color:white; margin-right:20px; font-weight:bold;">
+    ERP
+  </a>
+
+  {% if session.get('user_id') %}
+
+    {# ================= STUDENT NAVBAR ================= #}
+    {% if session.get('role') == 'student' %}
+      <a href="{{ url_for('student_dashboard') }}" style="color:white; margin-right:12px;">Dashboard</a>
+      <a href="{{ url_for('student_courses') }}" style="color:white; margin-right:12px;">Courses</a>
+      <a href="{{ url_for('student_progress') }}" style="color:white; margin-right:12px;">Progress</a>
+      <a href="{{ url_for('student_requests') }}" style="color:white; margin-right:12px;">Requests</a>
+    {% endif %}
+
+    {# ================= FACULTY NAVBAR ================= #}
+    {% if session.get('role') == 'faculty' %}
+      <a href="{{ url_for('faculty_dashboard') }}" style="color:white; margin-right:12px;">Faculty Dashboard</a>
+    {% endif %}
+
+    {# ================= ADMIN NAVBAR ================= #}
+    {% if session.get('role') == 'admin' %}
+      <a href="{{ url_for('admin_dashboard') }}" style="color:white; margin-right:12px;">Analytics</a>
+      <a href="{{ url_for('admin_create_user') }}" style="color:white; margin-right:12px;">Create User</a>
+      <a href="{{ url_for('admin_audit_logs') }}" style="color:white; margin-right:12px;">Audit Logs</a>
+    {% endif %}
+
+    <span style="flex:1;"></span>
+
+    <a href="{{ url_for('logout') }}" style="color:#ff6b6b;">
+      Logout
+    </a>
+
+  {% else %}
+    {# ================= NOT LOGGED IN ================= #}
+    <a href="{{ url_for('student_login') }}" style="color:white; margin-right:12px;">Student Login</a>
+    <a href="{{ url_for('faculty_login') }}" style="color:white; margin-right:12px;">Faculty Login</a>
+    <a href="{{ url_for('admin_login') }}" style="color:white; margin-right:12px;">Admin Login</a>
+    <!-- <a href="{{ url_for('forgot_password') }}" style="color:#9ad0ff;">Forgot Password?</a> -->
+  {% endif %}
+</nav>

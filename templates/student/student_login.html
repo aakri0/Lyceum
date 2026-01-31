@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Student Login</h2>
+<form method="POST">
+  <label>Email:</label><input type="text" name="email"><br>
+  <label>Password:</label><input type="password" name="password"><br>
+  <button type="submit">Login</button>
+   <p>
+    Trouble logging in?
+    <a href="{{ url_for('forgot_password') }}">Reset password</a>
+    </p>
+</form>
+{% endblock %}

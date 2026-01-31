@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>SWD Requests</h2>
+<table>
+  <tr><th>Category</th><th>Description</th><th>Status</th><th>Date</th></tr>
+  {% for r in requests %}
+  <tr>
+    <td>{{ r.category }}</td>
+    <td>{{ r.description }}</td>
+    <td>{{ r.status }}</td>
+    <td>{{ r.created_at }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No requests found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

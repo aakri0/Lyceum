@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Academic Progress</h2>
+
+{% if data|length == 0 %}
+  <p>No academic data available yet.</p>
+{% else %}
+  <canvas id="gpaChart" width="600" height="400"></canvas>
+
+  <script id="gpa-data" type="application/json">
+    {{ data | tojson }}
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    const gpaData = JSON.parse(
+      document.getElementById('gpa-data').textContent
+    );
+
+    const semesters = gpaData.map(x => "Semester " + x.semester);
+    const gpas = gpaData.map(x => x.gpa);
+
+    new Chart(document.getElementById('gpaChart'), {
+      type: 'line',
+      data: {
+        labels: semesters,
+        datasets: [{
+          label: 'GPA',
+          data: gpas,
+          fill: false,
+          tension: 0.2
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 10
+          }
+        }
+      }
+    });
+  </script>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}SWD Requests{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>All Student Requests</h2>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<table class="table table-striped table-hover align-middle">
+  <thead class="table-dark">
+    <tr>
+      <th scope="col">Request ID</th>
+      <th scope="col">Student ID</th>
+      <th scope="col">Category</th>
+      <th scope="col">Description</th>
+      <th scope="col">Status</th>
+      <th scope="col">Date</th>
+      <th scope="col">Actions</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for req in requests %}
+      <tr>
+        <td>{{ req.request_id }}</td>
+        <td>{{ req.student_id }}</td>
+        <td>{{ req.category }}</td>
+        <td>{{ req.description }}</td>
+        <td>
+          {% if req.status == 'Pending' %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% elif req.status == 'Approved' %}
+            <span class="badge bg-success">Approved</span>
+          {% elif req.status == 'Rejected' %}
+            <span class="badge bg-danger">Rejected</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ req.status }}</span>
+          {% endif %}
+        </td>
+        <td>{{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else '—' }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('update_request_status', request_id=req.request_id) }}" class="d-flex">
+            <select name="status" class="form-select form-select-sm me-2" required>
+              <option value="Pending" {% if req.status=='Pending' %}selected{% endif %}>Pending</option>
+              <option value="Approved" {% if req.status=='Approved' %}selected{% endif %}>Approved</option>
+              <option value="Rejected" {% if req.status=='Rejected' %}selected{% endif %}>Rejected</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Update</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted">No requests found.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

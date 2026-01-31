@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Enter Grades</h2>
+
+<form method="POST">
+  <select name="component">
+    <option>CIE</option>
+    <option>QUIZ-1</option>
+    <option>QUIZ-2</option>
+    <option>TEST-1</option>
+    <option>TEST-2</option>
+    <option>LAB</option>
+  </select>
+
+  <input name="marks" type="number" required>
+  <button>Save</button>
+</form>
+
+<h3>Existing Grades</h3>
+<ul>
+{% for g in grades %}
+  <li>{{ g.component_name }}: {{ g.marks }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

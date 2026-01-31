@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Faculty Dashboard</h2>
+
+<hr>
+
+<!-- ACTION BUTTONS -->
+<div style="margin-bottom:20px;">
+  <a href="/faculty_add_course" style="margin-right:15px;">➕ Add Course</a>
+  <a href="/faculty_enroll" style="margin-right:15px;">👨‍🎓 Enroll Students</a>
+</div>
+
+<hr>
+
+<!-- COURSES TAUGHT -->
+<h3>Your Courses</h3>
+
+{% if courses %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Course Name</th>
+    <th>Credits</th>
+    <th>Actions</th>
+  </tr>
+
+  {% for c in courses %}
+  <tr>
+    <td>{{ c.course_name }}</td>
+    <td>{{ c.credits }}</td>
+    <td>
+      <a href="{{ url_for('faculty_course_students', course_id=c.course_id) }}">
+      View Students / Enter Grades
+    </a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No courses added yet.</p>
+{% endif %}
+
+<hr>
+
+<!-- SWD REQUESTS (EXISTING FEATURE) -->
+<h3>Student Requests (SWD)</h3>
+
+{% if requests %}
+<table border="1" cellpadding="8">
+<tr>
+  <th>Roll No</th>
+  <th>Category</th>
+  <th>Description</th>
+  <th>Status</th>
+  <th>Action</th>
+</tr>
+
+{% for r in requests %}
+<tr>
+  <td>{{ r.roll_no }}</td>
+  <td>{{ r.category }}</td>
+  <td>{{ r.description }}</td>
+  <td>{{ r.status }}</td>
+  <td>
+    {% if r.status == 'pending' %}
+      <a href="/update_request/{{ r.req_id }}/approved">Approve</a> |
+      <a href="/update_request/{{ r.req_id }}/rejected">Reject</a>
+    {% else %}
+      -
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</table>
+{% else %}
+<p>No SWD requests.</p>
+{% endif %}
+
+{% endblock %}

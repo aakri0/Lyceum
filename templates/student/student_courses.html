@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>My Courses</h2>
+<table>
+  <tr><th>Course</th><th>Credits</th><th>Semester</th><th>Grade</th></tr>
+  {% for c in courses %}
+  <tr>
+    <td>{{ c.course_name }}</td>
+    <td>{{ c.credits }}</td>
+    <td>{{ c.semester }}</td>
+    <td>{{ c.grade or 'N/A' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No courses found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

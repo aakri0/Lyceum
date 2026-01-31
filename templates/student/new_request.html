@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>New SWD Request</h2>
+<form method="POST">
+  <label>Category:</label>
+  <input type="text" name="category" required><br>
+  <label>Description:</label>
+  <textarea name="description" required></textarea><br>
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}
