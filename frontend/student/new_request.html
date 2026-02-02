@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper" style="align-items: flex-start; margin-top: 2rem;">
+  <div class="card auth-card">
+    <div class="d-flex justify-between mb-4">
+      <h2 style="margin-bottom: 0;">New SWD Request</h2>
+      <a href="/student_requests" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+    </div>
+
+    <form method="POST">
+      <div class="form-group">
+        <label>Category</label>
+        <input type="text" name="category" placeholder="E.g. Hostel, Library, Sports" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" placeholder="Describe your request in detail..." rows="5" required
+          style="resize: vertical; min-height: 120px;"></textarea>
+      </div>
+
+      <div class="alert info" style="font-size: 0.9em; margin-top: 1rem;">
+        Your request will be reviewed by the SWD office. You'll be notified once it's processed.
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+        Submit Request
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

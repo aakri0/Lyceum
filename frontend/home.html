@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="min-height: 80vh; display: flex; align-items: center;">
+    <!-- Grid defaults to 'stretch' alignment, ensuring equal height for direct children -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 4rem; width: 100%;">
+
+        <!-- Left Side: Branding (Unified Hero) -->
+        <!-- Direct grid child to ensure stretching -->
+        <div class="p-5 text-center"
+            style="background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%); border-radius: 2rem; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+            <div class="mb-4">
+                <img src="{{ url_for('static', filename='icons/logo2.png') }}" alt="College ERP Logo"
+                    style="height: 80px; width: auto;">
+            </div>
+
+            <h1
+                style="font-size: 3rem; font-weight: 800; margin-bottom: 1rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                College ERP System</h1>
+
+            <p class="text-muted" style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 0;">
+                Seamlessly manage your academic journey, faculty resources, and administrative operations in one unified
+                platform.
+            </p>
+        </div>
+
+        <!-- Right Side: Login Options -->
+        <div class="card shadow-lg"
+            style="border-radius: 2rem; padding: 3rem; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+            <h2 class="text-center mb-5" style="font-weight: 600;">Login Portal</h2>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <a href="{{ url_for('student_login') }}" class="btn"
+                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Student Login</span>
+                    <span>&rarr;</span>
+                </a>
+
+                <a href="{{ url_for('faculty_login') }}" class="btn"
+                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; background-color: var(--info);">
+                    <span>Faculty Login</span>
+                    <span>&rarr;</span>
+                </a>
+
+                <a href="{{ url_for('admin_login') }}" class="btn btn-secondary"
+                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Admin Login</span>
+                    <span>&rarr;</span>
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-between align-items-center mb-4">
+    <h2>Analytics Overview</h2>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary" style="width: auto; height: fit-content;">Back
+        to Dashboard</a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4" style="background-color: var(--surface);">
+    <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label>From Date:</label>
+            <input type="date" name="start_date" value="{{ start_date }}">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label>To Date:</label>
+            <input type="date" name="end_date" value="{{ end_date }}">
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary" style="width: auto; height: fit-content;">Apply
+                Filters</button>
+            <a href="{{ url_for('admin_export_csv') }}" class="btn btn-outline-primary"
+                style="width: auto; height: fit-content;">Export Data (CSV)</a>
+        </div>
+    </form>
+</div>
+
+<!-- Key Metrics -->
+<div class="dashboard-grid mb-4">
+    <div class="card text-center">
+        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Students</h4>
+        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_students }}</h2>
+    </div>
+    <div class="card text-center">
+        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Faculty</h4>
+        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_faculty }}</h2>
+    </div>
+    <div class="card text-center">
+        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Requests</h4>
+        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_requests }}</h2>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="dashboard-grid">
+    <div class="card">
+        <h4 class="card-title">Request Status</h4>
+        <canvas id="statusChart"></canvas>
+    </div>
+    <div class="card">
+        <h4 class="card-title">Request Categories</h4>
+        <canvas id="categoryChart"></canvas>
+    </div>
+    <div class="card">
+        <h4 class="card-title">Enrollment by Dept</h4>
+        <canvas id="deptChart"></canvas>
+    </div>
+</div>
+
+<script id="status-data" type="application/json">
+  {{ status_data | tojson }}
+</script>
+<script id="category-data" type="application/json">
+  {{ category_data | tojson }}
+</script>
+<script id="dept-data" type="application/json">
+  {{ dept_data | tojson }}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    function renderChart(id, labels, counts, type) {
+        return new Chart(document.getElementById(id), {
+            type: type,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Count',
+                    data: counts,
+                    // Updated Vibrant Palette
+                    backgroundColor: [
+                        '#4F46E5',  // Indigo
+                        '#10B981',  // Emerald
+                        '#F59E0B',  // Amber
+                        '#EF4444',  // Red
+                        '#8B5CF6'   // Violet
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                },
+                scales: type === 'bar' ? {
+                    y: {
+                        beginAtZero: true,
+                        grid: { display: false }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                } : {}
+            }
+        });
+    }
+
+    const statusData = JSON.parse(document.getElementById('status-data').textContent);
+    const categoryData = JSON.parse(document.getElementById('category-data').textContent);
+    const deptData = JSON.parse(document.getElementById('dept-data').textContent);
+
+    if (statusData.length)
+        renderChart('statusChart', statusData.map(x => x.status), statusData.map(x => x.count), 'doughnut'); // Changed to Doughnut for modern look
+
+    if (categoryData.length)
+        renderChart('categoryChart', categoryData.map(x => x.category), categoryData.map(x => x.count), 'bar');
+
+    if (deptData.length)
+        renderChart('deptChart', deptData.map(x => x.dept_name), deptData.map(x => x.count), 'bar');
+
+</script>
+
+{% endblock %}

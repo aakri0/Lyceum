@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0">Edit Student Information</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="form-group mb-3">
+                            <label>Full Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ student.name }}" required>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label>Email Address</label>
+                            <input type="email" name="email" class="form-control" value="{{ student.email }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group mb-3">
+                                <label>Roll Number</label>
+                                <input type="text" name="roll_no" class="form-control" value="{{ student.roll_no }}"
+                                    required>
+                            </div>
+                            <div class="col-md-6 form-group mb-3">
+                                <label>Year of Study</label>
+                                <select name="year_of_study" class="form-control" required>
+                                    <option value="1" {% if student.year_of_study==1 %}selected{% endif %}>1st Year
+                                    </option>
+                                    <option value="2" {% if student.year_of_study==2 %}selected{% endif %}>2nd Year
+                                    </option>
+                                    <option value="3" {% if student.year_of_study==3 %}selected{% endif %}>3rd Year
+                                    </option>
+                                    <option value="4" {% if student.year_of_study==4 %}selected{% endif %}>4th Year
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label>Department</label>
+                            <select name="dept_id" class="form-control" required>
+                                {% for dept in departments %}
+                                <option value="{{ dept.dept_id }}" {% if dept.dept_id==student.dept_id %}selected{%
+                                    endif %}>
+                                    {{ dept.dept_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-between">
+                            <a href="{{ url_for('admin_manage_students') }}" class="btn btn-secondary"
+                                style="width: auto; padding: 0.75rem 2rem;">Cancel</a>
+                            <button type="submit" class="btn btn-primary"
+                                style="width: auto; padding: 0.75rem 2rem;">Update Details</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

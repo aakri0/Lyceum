@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-between mb-4">
+  <h2 style="margin-bottom: 0;">SWD Requests</h2>
+  <div class="d-flex" style="gap: 0.5rem;">
+    <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+    <a href="{{ url_for('new_request') }}" class="btn btn-primary" style="width: auto;">+ New Request</a>
+  </div>
+</div>
+
+<div class="card">
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td>{{ r.category }}</td>
+          <td>{{ r.description }}</td>
+          <td>
+            <span class="badge {{ r.status }}">{{ r.status }}</span>
+          </td>
+          <td>{{ r.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted">No requests found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-between align-items-center mb-4">
+        <h2>Manage Faculty</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
+            style="width: auto; padding: 0.5rem 1rem;">Back to Dashboard</a>
+    </div>
+
+    {% if not structured_data %}
+    <div class="alert alert-info">No faculty members found in the database.</div>
+    {% else %}
+    {% for dept_name, faculty_list in structured_data.items() %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0" style="font-size: 1.25rem;">{{ dept_name }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive mb-0">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th style="width: 200px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for faculty in faculty_list %}
+                        <tr>
+                            <td>{{ faculty.name }}</td>
+                            <td>{{ faculty.email }}</td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <a href="{{ url_for('admin_edit_faculty', faculty_id=faculty.faculty_id) }}"
+                                        class="btn btn-warning"
+                                        style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Edit</a>
+                                    <form action="{{ url_for('admin_delete_faculty', faculty_id=faculty.faculty_id) }}"
+                                        method="POST" style="display:inline;"
+                                        onsubmit="return confirm('Are you sure you want to delete this faculty member? This will permanently remove their account.');">
+                                        <button type="submit" class="btn btn-danger"
+                                            style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

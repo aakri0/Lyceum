@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">Student Dashboard</h2>
+<div class="dashboard-grid">
+  <div class="card">
+    <h3 class="card-title">My Profile</h3>
+    <p class="text-muted mb-4">View and edit your personal details.</p>
+    <a href="{{ url_for('student_profile') }}" class="btn">View Profile</a>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title">My Courses</h3>
+    <p class="text-muted mb-4">Check your enrolled courses and grades.</p>
+    <a href="{{ url_for('student_courses') }}" class="btn">View Courses</a>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title">Requests</h3>
+    <p class="text-muted mb-4">Submit and track your administrative requests.</p>
+    <a href="{{ url_for('student_requests') }}" class="btn">Manage Requests</a>
+  </div>
+
+  <!-- Academic Progress Card -->
+  <div class="card" style="grid-column: span 2;">
+    <div class="d-flex justify-between mb-4" style="align-items: center;">
+      <h3 class="card-title" style="margin: 0;">Academic Progress</h3>
+      <a href="{{ url_for('student_progress') }}"
+        style="color: var(--primary); text-decoration: none; font-size: 0.9em;">View Details →</a>
+    </div>
+
+    {% if cumulative_cgpa %}
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: center;">
+      <!-- CGPA Display -->
+      <div
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 12px; text-align: center;">
+        <p style="margin: 0; color: white; opacity: 0.9; font-size: 0.9em;">Cumulative CGPA</p>
+        <p style="margin: 0.5rem 0 0 0; color: white; font-size: 3em; font-weight: 700;">{{ cumulative_cgpa }}</p>
+      </div>
+
+      <!-- Mini Graph -->
+      <div>
+        <canvas id="miniCgpaChart" style="max-height: 150px;"></canvas>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const miniCtx = document.getElementById('miniCgpaChart').getContext('2d');
+      const miniData = {{ mini_graph_data | tojson }};
+
+      new Chart(miniCtx, {
+        type: 'line',
+        data: {
+          labels: miniData.map(d => `S${d.semester}`),
+          datasets: [{
+            label: 'CGPA',
+            data: miniData.map(d => d.gpa),
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#667eea',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 8,
+              titleFont: { size: 12 },
+              bodyFont: { size: 11 }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 10,
+              ticks: { stepSize: 2, font: { size: 10 } },
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            },
+            x: {
+              ticks: { font: { size: 10 } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    </script>
+    {% else %}
+    <div class="alert info text-center">
+      <p style="margin: 0;">No academic data available yet. Your CGPA will appear here once courses are graded.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

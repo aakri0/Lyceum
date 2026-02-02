@@ -1,0 +1,60 @@
+<nav class="navbar">
+  <div class="navbar-container">
+    <div class="navbar-brand">
+      <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 10px;">
+        <img src="{{ url_for('static', filename='icons/logo2.png') }}" alt="ERP Logo"
+          style="height: 40px; width: auto;">
+        <span>ERP System</span>
+      </a>
+    </div>
+
+    <div class="navbar-links">
+      {% if session.get('user_id') %}
+
+      {# ================= STUDENT NAVBAR ================= #}
+      {% if session.get('role') == 'student' %}
+      <a href="{{ url_for('student_dashboard') }}" class="nav-link">Dashboard</a>
+      <a href="{{ url_for('student_courses') }}" class="nav-link">Courses</a>
+      <a href="{{ url_for('student_progress') }}" class="nav-link">Progress</a>
+      <a href="{{ url_for('student_requests') }}" class="nav-link">Requests</a>
+      {% endif %}
+
+      {# ================= FACULTY NAVBAR ================= #}
+      {% if session.get('role') == 'faculty' %}
+      <a href="{{ url_for('faculty_dashboard') }}" class="nav-link">Dashboard</a>
+      {% endif %}
+
+      {# ================= ADMIN NAVBAR ================= #}
+      {% if session.get('role') == 'admin' %}
+      <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Home</a>
+      <a href="{{ url_for('admin_analytics') }}" class="nav-link">Analytics</a>
+
+      <div class="dropdown">
+        <a href="#" class="nav-link" style="cursor: default;">Manage &darr;</a>
+        <div class="dropdown-content">
+          <a href="{{ url_for('admin_requests') }}">Manage Requests</a>
+          <a href="{{ url_for('admin_manage_students') }}">Manage Students</a>
+          <a href="{{ url_for('admin_manage_faculty') }}">Manage Faculty</a>
+          <a href="{{ url_for('admin_manage_departments') }}">Manage Departments</a>
+          <a href="{{ url_for('admin_create_user') }}">Create New User</a>
+          <hr style="margin: 0; border-top: 1px solid var(--border);">
+          <a href="{{ url_for('admin_export_csv') }}">Export Data (CSV)</a>
+        </div>
+      </div>
+
+      <a href="{{ url_for('admin_audit_logs') }}" class="nav-link">Audit Logs</a>
+      {% endif %}
+
+      <a href="{{ url_for('logout') }}" class="nav-logout">
+        Logout
+      </a>
+
+      {% else %}
+      {# ================= NOT LOGGED IN ================= #}
+      <a href="{{ url_for('student_login') }}" class="nav-link">Student Login</a>
+      <a href="{{ url_for('faculty_login') }}" class="nav-link">Faculty Login</a>
+      <a href="{{ url_for('admin_login') }}" class="nav-link">Admin Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>

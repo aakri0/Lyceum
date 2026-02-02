@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-between align-items-center mb-5">
+    <h2>Manage Departments</h2>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary" style="width: auto;">Back to Dashboard</a>
+</div>
+
+<!-- Add New Department Card -->
+<div class="card mb-4" style="border: none; box-shadow: var(--shadow);">
+    <h3 class="card-title mb-4">Add New Department</h3>
+    <form action="{{ url_for('admin_add_department') }}" method="POST" class="d-flex gap-3 align-items-end"
+        style="width: 100%;">
+        <div style="flex: 1;">
+            <label for="dept_name" class="form-label">Department Name</label>
+            <input type="text" class="form-control" id="dept_name" name="dept_name"
+                placeholder="e.g. Computer Science (CSE)" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: auto; height: fit-content; white-space: nowrap;">Add
+            Department</button>
+    </form>
+</div>
+
+<!-- Existing Departments List -->
+<div class="card" style="border: none; box-shadow: var(--shadow);">
+    <h3 class="card-title mb-4">Existing Departments</h3>
+
+    {% if not departments %}
+    <div class="p-4 text-center text-muted">No departments found.</div>
+    {% else %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background-color: var(--background);">
+                <tr>
+                    <th style="padding: 1rem;">ID</th>
+                    <th style="padding: 1rem;">Department Name</th>
+                    <th style="padding: 1rem; width: 200px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dept in departments %}
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 1rem;">{{ dept.dept_id }}</td>
+                    <td style="padding: 1rem; font-weight: 500;">{{ dept.dept_name }}</td>
+                    <td style="padding: 1rem; text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <a href="{{ url_for('admin_edit_department', dept_id=dept.dept_id) }}"
+                                class="btn btn-primary"
+                                style="width: auto; padding: 0.4rem 1rem; font-size: 0.9rem;">Edit</a>
+
+                            <form action="{{ url_for('admin_delete_department', dept_id=dept.dept_id) }}" method="POST"
+                                style="display:inline;"
+                                onsubmit="return confirm('Are you sure? This might affect students/faculty linked to this department.');">
+                                <button type="submit" class="btn btn-danger"
+                                    style="width: auto; padding: 0.4rem 1rem; font-size: 0.9rem;">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

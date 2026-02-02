@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-between align-items-center mb-5">
+  <h2>Admin Dashboard</h2>
+  <p class="text-muted">Welcome, Admin</p>
+</div>
+
+<!-- Management Tools (Cards) -->
+<div class="dashboard-grid mb-5">
+
+  <!-- Analytics (New Link) -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Analytics Overview</h3>
+    <p class="text-muted mb-4">View detailed reports, charts, and system statistics.</p>
+    <a href="{{ url_for('admin_analytics') }}" class="btn btn-outline-primary w-100">View Analytics &rarr;</a>
+  </div>
+
+  <!-- Manage Requests -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Manage Requests</h3>
+    <p class="text-muted mb-4">Review and approve student administrative requests.</p>
+    <a href="{{ url_for('admin_requests') }}" class="btn btn-primary w-100">Go to Requests &rarr;</a>
+  </div>
+
+  <!-- Manage Students -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Manage Students</h3>
+    <p class="text-muted mb-4">View, edit, or delete student profiles and records.</p>
+    <a href="{{ url_for('admin_manage_students') }}" class="btn btn-primary w-100">Manage Students &rarr;</a>
+  </div>
+
+  <!-- Manage Faculty -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Manage Faculty</h3>
+    <p class="text-muted mb-4">Oversee faculty members and assignments.</p>
+    <a href="{{ url_for('admin_manage_faculty') }}" class="btn btn-primary w-100">Manage Faculty &rarr;</a>
+  </div>
+
+  <!-- Manage Departments -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Manage Departments</h3>
+    <p class="text-muted mb-4">Add or update department details.</p>
+    <a href="{{ url_for('admin_manage_departments') }}" class="btn btn-primary w-100">Manage Departments &rarr;</a>
+  </div>
+
+  <!-- Create User -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Create User</h3>
+    <p class="text-muted mb-4">Onboard new students, faculty, or admins.</p>
+    <a href="{{ url_for('admin_create_user') }}" class="btn btn-primary w-100">Create New User &rarr;</a>
+  </div>
+
+  <!-- Audit Logs -->
+  <div class="card hover-elevate">
+    <h3 class="card-title">Audit Logs</h3>
+    <p class="text-muted mb-4">Monitor system activity and security logs.</p>
+    <a href="{{ url_for('admin_audit_logs') }}" class="btn btn-outline-primary w-100">View Logs &rarr;</a>
+  </div>
+</div>
+
+{% endblock %}

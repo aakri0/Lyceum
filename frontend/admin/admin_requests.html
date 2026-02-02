@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="d-flex justify-between mb-4">
+        <h2 class="card-title" style="margin-bottom: 0;">SWD Requests Management</h2>
+        <a href="/admin_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+    </div>
+
+    {% if requests|length == 0 %}
+    <div class="alert info text-center">
+        <p style="margin: 0;">No SWD requests found. Requests will appear here when students submit them.</p>
+    </div>
+    {% else %}
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Roll No</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                    <th>Date</th>
+                    <th style="width: 280px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>{{ req.student_name }}</td>
+                    <td>{{ req.roll_no }}</td>
+                    <td>{{ req.category }}</td>
+                    <td style="max-width: 300px;">{{ req.description }}</td>
+                    <td>
+                        {% if req.status == 'pending' %}
+                        <span class="badge pending">Pending</span>
+                        {% elif req.status == 'approved' %}
+                        <span class="badge approved">Approved</span>
+                        {% elif req.status == 'rejected' %}
+                        <span class="badge rejected">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.assigned_faculty_name %}
+                        <span class="badge" style="background: #3B82F6;">{{ req.assigned_faculty_name }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ req.created_at.strftime('%Y-%m-%d') if req.created_at else 'N/A' }}</td>
+                    <td>
+                        <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+                            <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
+                                style="margin: 0;">
+                                <input type="hidden" name="action" value="approved">
+                                <button type="submit" class="btn btn-primary"
+                                    style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                                    Approve
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
+                                style="margin: 0;">
+                                <input type="hidden" name="action" value="rejected">
+                                <button type="submit" class="btn"
+                                    style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white;">
+                                    Reject
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
+                                style="margin: 0;">
+                                <input type="hidden" name="action" value="pending">
+                                <button type="submit" class="btn"
+                                    style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #F59E0B; color: white;">
+                                    Reset
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_forward_request', req_id=req.req_id) }}"
+                                style="margin: 0; display: flex; gap: 0.2rem;">
+                                <select name="faculty_id" required
+                                    style="font-size: 0.8rem; padding: 0.3rem; width: 100px;">
+                                    <option value="">Select Faculty</option>
+                                    {% for faculty in faculty_list %}
+                                    {% if faculty.dept_id == req.dept_id %}
+                                    <option value="{{ faculty.faculty_id }}" {% if
+                                        req.assigned_faculty_id==faculty.faculty_id %}selected{% endif %}>
+                                        {{ faculty.name[:15] }}...
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn"
+                                    style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #8B5CF6; color: white;">
+                                    Forward
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

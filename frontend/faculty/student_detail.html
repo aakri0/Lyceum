@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="d-flex justify-between mb-4">
+        <h2 class="card-title" style="margin-bottom: 0;">Student Details</h2>
+        <a href="/faculty_students" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+    </div>
+
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div>
+            <p style="margin: 0.5rem 0; color: var(--text-muted); font-size: 0.9em;">Name</p>
+            <p style="margin: 0; font-weight: 500;">{{ student.name }}</p>
+        </div>
+        <div>
+            <p style="margin: 0.5rem 0; color: var(--text-muted); font-size: 0.9em;">Roll Number</p>
+            <p style="margin: 0; font-weight: 500;">{{ student.roll_no }}</p>
+        </div>
+        <div>
+            <p style="margin: 0.5rem 0; color: var(--text-muted); font-size: 0.9em;">Email</p>
+            <p style="margin: 0; font-weight: 500;">{{ student.email }}</p>
+        </div>
+        <div>
+            <p style="margin: 0.5rem 0; color: var(--text-muted); font-size: 0.9em;">Year of Study</p>
+            <p style="margin: 0; font-weight: 500;">{{ student.year_of_study | ordinal_year }}</p>
+        </div>
+    </div>
+
+    <div
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; text-align: center; margin-bottom: 2rem;">
+        <p style="margin: 0; color: white; opacity: 0.9; font-size: 0.9em;">Cumulative CGPA</p>
+        <p style="margin: 0.5rem 0 0 0; color: white; font-size: 3em; font-weight: 700;">
+            {{ cumulative_cgpa if cumulative_cgpa else 'N/A' }}
+        </p>
+    </div>
+</div>
+
+{% if data %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 class="card-title" style="text-align: left; margin-bottom: 1rem;">Semester-wise CGPA</h3>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Semester</th>
+                    <th>CGPA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data %}
+                <tr>
+                    <td>Semester {{ item.semester }}</td>
+                    <td>
+                        {% if item.gpa >= 8.0 %}
+                        <span class="badge" style="background: #10B981;">{{ item.gpa }}</span>
+                        {% elif item.gpa >= 6.0 %}
+                        <span class="badge" style="background: #F59E0B;">{{ item.gpa }}</span>
+                        {% else %}
+                        <span class="badge" style="background: #EF4444;">{{ item.gpa }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3 class="card-title" style="text-align: left; margin-bottom: 1rem;">CGPA Trend</h3>
+    <div style="height: 150px; width: 100%;">
+        <canvas id="cgpaChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('cgpaChart').getContext('2d');
+    const data = {{ data | tojson }};
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => `Sem ${d.semester}`),
+            datasets: [{
+                label: 'CGPA',
+                data: data.map(d => d.gpa),
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% else %}
+<div class="card">
+    <div class="alert info text-center">
+        <p style="margin: 0;">No grade data available for this student.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

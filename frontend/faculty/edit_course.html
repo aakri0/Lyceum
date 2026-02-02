@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="auth-wrapper" style="align-items: flex-start; margin-top: 2rem;">
+    <div class="card auth-card">
+        <div class="d-flex justify-between mb-4">
+            <h2 style="margin-bottom: 0;">Edit Course</h2>
+            <a href="/faculty_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+        </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Course Name</label>
+                <input type="text" name="course_name" value="{{ course.course_name }}"
+                    placeholder="E.g. Database Management Systems" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label>Credits</label>
+                <input type="number" name="credits" value="{{ course.credits }}" placeholder="E.g. 4" min="1" max="10"
+                    required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                Update Course
+            </button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

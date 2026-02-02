@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper" style="min-height: auto; align-items: flex-start;">
+    <div class="card auth-card" style="max-width: 600px;">
+        <div class="d-flex justify-between mb-4">
+            <div>
+                <h2 style="margin-bottom: 0;">Student Profile</h2>
+                <p class="text-muted" style="margin: 0; font-size: 0.9em;">Your personal details</p>
+            </div>
+            <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+        </div>
+
+        {% if student %}
+        <div style="display: grid; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div class="d-flex justify-between" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span class="text-muted">Name</span>
+                <span style="font-weight: 600;">{{ student.name }}</span>
+            </div>
+            <div class="d-flex justify-between" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span class="text-muted">Email</span>
+                <span style="font-weight: 600;">{{ student.email }}</span>
+            </div>
+            <div class="d-flex justify-between" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span class="text-muted">Department</span>
+                <span style="font-weight: 600;">{{ student.dept_name }}</span>
+            </div>
+            <div class="d-flex justify-between" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span class="text-muted">Roll No</span>
+                <span style="font-weight: 600;">{{ student.roll_no }}</span>
+            </div>
+            <div class="d-flex justify-between" style="padding-bottom: 0.5rem;">
+                <span class="text-muted">Year</span>
+                <span style="font-weight: 600;">{{ student.year_of_study | ordinal_year }}</span>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-center text-muted">No profile data found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="d-flex justify-between mb-4">
+        <h2 class="card-title" style="margin-bottom: 0;">Department Students</h2>
+        <a href="/faculty_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+    </div>
+
+    {% if students_by_year %}
+    {% for year in students_by_year.keys()|sort %}
+    <div style="margin-bottom: 2rem;">
+        <h3 style="color: var(--primary); margin-bottom: 1rem;">
+            {{ year | ordinal_year }}
+        </h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Roll No</th>
+                        <th>Email</th>
+                        <th>Cumulative CGPA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students_by_year[year] %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('faculty_student_detail', student_id=student.student_id) }}"
+                                style="color: var(--primary); text-decoration: none; font-weight: 500;">
+                                {{ student.name }}
+                            </a>
+                        </td>
+                        <td>{{ student.roll_no }}</td>
+                        <td>{{ student.email }}</td>
+                        <td>
+                            {% if student.cgpa %}
+                            {% if student.cgpa >= 8.0 %}
+                            <span class="badge" style="background: #10B981;">{{ student.cgpa }}</span>
+                            {% elif student.cgpa >= 6.0 %}
+                            <span class="badge" style="background: #F59E0B;">{{ student.cgpa }}</span>
+                            {% else %}
+                            <span class="badge" style="background: #EF4444;">{{ student.cgpa }}</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert info text-center">
+        <p style="margin: 0;">No students found in your department.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -4,15 +4,28 @@ from db import get_connection
 import random
 from datetime import date
 from datetime import datetime, timedelta
-from utils.email_utils import send_otp_email
+from utils.email_utils import send_otp_email, send_password_reset_email
 import csv
 import io
 from flask import Response
 import uuid
 from mysql.connector import Error
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='frontend')
 app.secret_key = "supersecretkey"
+
+@app.template_filter('ordinal_year')
+def ordinal_year_filter(year):
+    if not year:
+        return ""
+    try:
+        y = int(year)
+        if y == 1: return "1st Year"
+        if y == 2: return "2nd Year"
+        if y == 3: return "3rd Year"
+        return f"{y}th Year"
+    except:
+        return f"Year {year}"
 
 bcrypt = Bcrypt(app)
 
@@ -212,8 +225,8 @@ def forgot_password():
             """, (user['user_id'], token))
             conn.commit()
 
-            print("RESET LINK (dev):",
-                  f"http://127.0.0.1:5000/reset_password/{token}")
+            reset_link = f"http://127.0.0.1:5000/reset_password/{token}"
+            send_password_reset_email(email, reset_link)
 
         conn.close()
         flash("If email exists, reset link has been sent", "info")
@@ -266,7 +279,77 @@ def reset_password(token):
 def student_dashboard():
     if 'user_id' not in session:
         return redirect(url_for('student_login'))
-    return render_template('student/student_dashboard.html')
+    
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    # Get student_id
+    cur.execute("SELECT student_id FROM students WHERE user_id=%s", (session['user_id'],))
+    student_data = cur.fetchone()
+    
+    if not student_data:
+        conn.close()
+        return render_template('student/student_dashboard.html')
+    
+    student_id = student_data['student_id']
+    
+    # Get all enrollments with grades for CGPA calculation
+    cur.execute("""
+        SELECT e.semester, e.grade, c.credits
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.course_id
+        WHERE e.student_id = %s AND e.grade IS NOT NULL
+        ORDER BY e.semester
+    """, (student_id,))
+    
+    enrollments = cur.fetchall()
+    conn.close()
+    
+    # Calculate semester-wise GPA and cumulative CGPA
+    semester_data = {}
+    for enrollment in enrollments:
+        semester = enrollment['semester']
+        grade = enrollment['grade']
+        credits = enrollment['credits']
+        
+        # Convert grade to grade points
+        try:
+            grade_points = float(grade)
+        except (ValueError, TypeError):
+            grade_map = {
+                'A': 10, 'A+': 10, 'B': 8, 'B+': 9,
+                'C': 6, 'C+': 7, 'D': 4, 'D+': 5, 'F': 0
+            }
+            grade_points = grade_map.get(str(grade).upper(), 0)
+        
+        if semester not in semester_data:
+            semester_data[semester] = {'total_points': 0, 'total_credits': 0}
+        
+        semester_data[semester]['total_points'] += grade_points * credits
+        semester_data[semester]['total_credits'] += credits
+    
+    # Calculate GPA for each semester
+    mini_graph_data = []
+    cumulative_points = 0
+    cumulative_credits = 0
+    
+    for semester in sorted(semester_data.keys()):
+        total_points = semester_data[semester]['total_points']
+        total_credits = semester_data[semester]['total_credits']
+        gpa = round(total_points / total_credits, 2) if total_credits > 0 else 0
+        mini_graph_data.append({'semester': semester, 'gpa': gpa})
+        
+        cumulative_points += total_points
+        cumulative_credits += total_credits
+    
+    # Get last 4 semesters for mini graph
+    mini_graph_data = mini_graph_data[-4:] if len(mini_graph_data) > 4 else mini_graph_data
+    
+    cumulative_cgpa = round(cumulative_points / cumulative_credits, 2) if cumulative_credits > 0 else None
+    
+    return render_template('student/student_dashboard.html', 
+                         cumulative_cgpa=cumulative_cgpa,
+                         mini_graph_data=mini_graph_data)
 
 
 @app.route('/student_profile')
@@ -359,18 +442,65 @@ def student_progress():
 
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
+    
+    # Get all enrollments with grades
     cur.execute("""
-        SELECT semester,
-        ROUND(SUM(grade_points * credits)/SUM(credits),2) AS gpa
+        SELECT e.semester, e.grade, c.credits
         FROM enrollments e
-        JOIN courses c ON e.course_id=c.course_id
-        WHERE student_id=%s
-        GROUP BY semester
-        ORDER BY semester
+        JOIN courses c ON e.course_id = c.course_id
+        WHERE e.student_id = %s AND e.grade IS NOT NULL
+        ORDER BY e.semester
     """, (session['student_id'],))
-    data = cur.fetchall()
+    
+    enrollments = cur.fetchall()
     conn.close()
-    return render_template('student/progress.html', data=data)
+    
+    # Calculate GPA per semester
+    semester_data = {}
+    for enrollment in enrollments:
+        semester = enrollment['semester']
+        grade = enrollment['grade']
+        credits = enrollment['credits']
+        
+        # Convert grade to grade points (handle both letter and numeric grades)
+        try:
+            # Try numeric grade first (0-10 scale)
+            grade_points = float(grade)
+        except (ValueError, TypeError):
+            # Handle letter grades
+            grade_map = {
+                'A': 10, 'A+': 10,
+                'B': 8, 'B+': 9,
+                'C': 6, 'C+': 7,
+                'D': 4, 'D+': 5,
+                'F': 0
+            }
+            grade_points = grade_map.get(str(grade).upper(), 0)
+        
+        if semester not in semester_data:
+            semester_data[semester] = {'total_points': 0, 'total_credits': 0}
+        
+        semester_data[semester]['total_points'] += grade_points * credits
+        semester_data[semester]['total_credits'] += credits
+    
+    # Calculate GPA for each semester
+    data = []
+    cumulative_points = 0
+    cumulative_credits = 0
+    
+    for semester in sorted(semester_data.keys()):
+        total_points = semester_data[semester]['total_points']
+        total_credits = semester_data[semester]['total_credits']
+        gpa = round(total_points / total_credits, 2) if total_credits > 0 else 0
+        data.append({'semester': semester, 'gpa': gpa})
+        
+        cumulative_points += total_points
+        cumulative_credits += total_credits
+    
+    # Calculate cumulative CGPA
+    cumulative_cgpa = round(cumulative_points / cumulative_credits, 2) if cumulative_credits > 0 else 0
+    
+    return render_template('student/progress.html', data=data, cumulative_cgpa=cumulative_cgpa)
 
 
 # =============================================================
@@ -413,7 +543,8 @@ def faculty_login():
             conn.commit()
             conn.close()
 
-            print("FACULTY OTP (dev):", plain_otp)
+            send_otp_email(user['email'], plain_otp)
+            flash("OTP sent to your email", "info")
             return redirect(url_for('verify_otp'))
 
         flash("Invalid credentials", "danger")
@@ -428,18 +559,29 @@ def faculty_dashboard():
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
 
-    # SWD Requests
+    # Get faculty_id for current user
+    cur.execute("SELECT faculty_id FROM faculty WHERE user_id=%s", (session['temp_user'] if 'temp_user' in session else session.get('user_id'),))
+    faculty_data = cur.fetchone()
+    faculty_id = faculty_data['faculty_id'] if faculty_data else None
+    
+    if faculty_id and 'faculty_id' not in session:
+        session['faculty_id'] = faculty_id
+
+    # SWD Requests forwarded to this faculty
     cur.execute("""
-        SELECT r.req_id, r.category, r.description, r.status, s.roll_no
+        SELECT r.req_id, r.category, r.description, r.status, 
+               s.roll_no, u.name as student_name
         FROM swd_requests r
         JOIN students s ON r.student_id=s.student_id
-        WHERE s.dept_id=%s
-    """, (session['dept_id'],))
+        JOIN users u ON s.user_id=u.user_id
+        WHERE r.assigned_faculty_id=%s
+        ORDER BY r.created_at DESC
+    """, (faculty_id,))
     requests = cur.fetchall()
 
     # Courses by faculty department
     cur.execute("""
-        SELECT course_id, course_name, credits
+        SELECT course_id, course_name, credits, semester
         FROM courses
         WHERE dept_id=%s
     """, (session['dept_id'],))
@@ -492,16 +634,22 @@ def faculty_enroll():
     students = cur.fetchall()
 
     if request.method == 'POST':
-        cur.execute("""
-            INSERT INTO enrollments (student_id, course_id, semester)
-            VALUES (%s, %s, %s)
-        """, (
-            request.form['student_id'],
-            request.form['course_id'],
-            request.form['semester']
-        ))
-        conn.commit()
-        flash("Student enrolled", "success")
+        try:
+            cur.execute("""
+                INSERT INTO enrollments (student_id, course_id, semester)
+                VALUES (%s, %s, %s)
+            """, (
+                request.form['student_id'],
+                request.form['course_id'],
+                request.form['semester']
+            ))
+            conn.commit()
+            flash("Student enrolled", "success")
+        except Error as e:
+            if e.errno == 1062:
+                flash("Student already enrolled in this course for this semester", "danger")
+            else:
+                flash(f"Error enrolling student: {e}", "danger")
 
     conn.close()
     return render_template(
@@ -509,6 +657,215 @@ def faculty_enroll():
         courses=courses,
         students=students
     )
+
+@app.route('/faculty_edit_course/<int:course_id>', methods=['GET', 'POST'])
+def faculty_edit_course(course_id):
+    if session.get('role') != 'faculty':
+        return redirect(url_for('faculty_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+
+    if request.method == 'POST':
+        course_name = request.form['course_name']
+        credits = request.form['credits']
+
+        cur.execute("""
+            UPDATE courses
+            SET course_name=%s, credits=%s
+            WHERE course_id=%s AND dept_id=%s
+        """, (course_name, credits, course_id, session['dept_id']))
+        conn.commit()
+        conn.close()
+        
+        flash("Course updated successfully", "success")
+        return redirect(url_for('faculty_dashboard'))
+
+    # GET request - fetch course data
+    cur.execute("""
+        SELECT course_id, course_name, credits, semester
+        FROM courses
+        WHERE course_id=%s AND dept_id=%s
+    """, (course_id, session['dept_id']))
+    course = cur.fetchone()
+    conn.close()
+
+    if not course:
+        flash("Course not found or access denied", "danger")
+        return redirect(url_for('faculty_dashboard'))
+
+    return render_template('faculty/edit_course.html', course=course)
+
+@app.route('/faculty_delete_course/<int:course_id>', methods=['POST'])
+def faculty_delete_course(course_id):
+    if session.get('role') != 'faculty':
+        return redirect(url_for('faculty_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Check if course has enrollments
+    cur.execute("SELECT COUNT(*) as count FROM enrollments WHERE course_id=%s", (course_id,))
+    result = cur.fetchone()
+    
+    if result['count'] > 0:
+        flash("Cannot delete course with enrolled students", "danger")
+        conn.close()
+        return redirect(url_for('faculty_dashboard'))
+
+    # Delete course
+    cur.execute("DELETE FROM courses WHERE course_id=%s AND dept_id=%s", (course_id, session['dept_id']))
+    conn.commit()
+    conn.close()
+
+    flash("Course deleted successfully", "success")
+    return redirect(url_for('faculty_dashboard'))
+
+@app.route('/faculty_students')
+def faculty_students():
+    if session.get('role') != 'faculty':
+        return redirect(url_for('faculty_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Get all students in the department with their grades
+    cur.execute("""
+        SELECT s.student_id, s.roll_no, s.year_of_study,
+               u.name, u.email
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.dept_id = %s
+        ORDER BY s.year_of_study, u.name
+    """, (session['dept_id'],))
+    
+    students = cur.fetchall()
+    
+    # Calculate cumulative CGPA for each student
+    for student in students:
+        cur.execute("""
+            SELECT e.grade, c.credits
+            FROM enrollments e
+            JOIN courses c ON e.course_id = c.course_id
+            WHERE e.student_id = %s AND e.grade IS NOT NULL
+        """, (student['student_id'],))
+        
+        grades = cur.fetchall()
+        
+        total_points = 0
+        total_credits = 0
+        
+        for grade_row in grades:
+            grade = grade_row['grade']
+            credits = grade_row['credits']
+            
+            # Convert grade to grade points
+            try:
+                grade_points = float(grade)
+            except (ValueError, TypeError):
+                grade_map = {
+                    'A': 10, 'A+': 10, 'B': 8, 'B+': 9,
+                    'C': 6, 'C+': 7, 'D': 4, 'D+': 5, 'F': 0
+                }
+                grade_points = grade_map.get(str(grade).upper(), 0)
+            
+            total_points += grade_points * credits
+            total_credits += credits
+        
+        student['cgpa'] = round(total_points / total_credits, 2) if total_credits > 0 else None
+    
+    conn.close()
+    
+    # Group students by year
+    students_by_year = {}
+    for student in students:
+        year = student['year_of_study']
+        if year not in students_by_year:
+            students_by_year[year] = []
+        students_by_year[year].append(student)
+    
+    return render_template('faculty/students.html', students_by_year=students_by_year)
+
+@app.route('/faculty_student_detail/<int:student_id>')
+def faculty_student_detail(student_id):
+    if session.get('role') != 'faculty':
+        return redirect(url_for('faculty_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Get student info
+    cur.execute("""
+        SELECT s.student_id, s.roll_no, s.year_of_study, s.dept_id,
+               u.name, u.email
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.student_id = %s AND s.dept_id = %s
+    """, (student_id, session['dept_id']))
+    
+    student = cur.fetchone()
+    
+    if not student:
+        flash("Student not found or access denied", "danger")
+        conn.close()
+        return redirect(url_for('faculty_students'))
+    
+    # Get all enrollments with grades
+    cur.execute("""
+        SELECT e.semester, e.grade, c.credits, c.course_name
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.course_id
+        WHERE e.student_id = %s AND e.grade IS NOT NULL
+        ORDER BY e.semester
+    """, (student_id,))
+    
+    enrollments = cur.fetchall()
+    conn.close()
+    
+    # Calculate semester-wise CGPA
+    semester_data = {}
+    for enrollment in enrollments:
+        semester = enrollment['semester']
+        grade = enrollment['grade']
+        credits = enrollment['credits']
+        
+        # Convert grade to grade points
+        try:
+            grade_points = float(grade)
+        except (ValueError, TypeError):
+            grade_map = {
+                'A': 10, 'A+': 10, 'B': 8, 'B+': 9,
+                'C': 6, 'C+': 7, 'D': 4, 'D+': 5, 'F': 0
+            }
+            grade_points = grade_map.get(str(grade).upper(), 0)
+        
+        if semester not in semester_data:
+            semester_data[semester] = {'total_points': 0, 'total_credits': 0}
+        
+        semester_data[semester]['total_points'] += grade_points * credits
+        semester_data[semester]['total_credits'] += credits
+    
+    # Calculate GPA for each semester and cumulative
+    data = []
+    cumulative_points = 0
+    cumulative_credits = 0
+    
+    for semester in sorted(semester_data.keys()):
+        total_points = semester_data[semester]['total_points']
+        total_credits = semester_data[semester]['total_credits']
+        gpa = round(total_points / total_credits, 2) if total_credits > 0 else 0
+        data.append({'semester': semester, 'gpa': gpa})
+        
+        cumulative_points += total_points
+        cumulative_credits += total_credits
+    
+    cumulative_cgpa = round(cumulative_points / cumulative_credits, 2) if cumulative_credits > 0 else 0
+    
+    return render_template('faculty/student_detail.html', 
+                         student=student, 
+                         data=data, 
+                         cumulative_cgpa=cumulative_cgpa)
 
 @app.route('/faculty_grades/<int:enrollment_id>', methods=['GET', 'POST'])
 def faculty_grades(enrollment_id):
@@ -654,7 +1011,8 @@ def admin_login():
             conn.commit()
             conn.close()
 
-            print("ADMIN OTP (dev):", plain_otp)
+            send_otp_email(user['email'], plain_otp)
+            flash("OTP sent to your email", "info")
             return redirect(url_for('verify_otp'))
 
         flash("Invalid credentials", "danger")
@@ -664,6 +1022,12 @@ def admin_login():
 
 @app.route('/admin_dashboard')
 def admin_dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for('admin_login'))
+    return render_template('admin/admin_dashboard.html')
+
+@app.route('/admin_analytics')
+def admin_analytics():
     if 'user_id' not in session:
         return redirect(url_for('admin_login'))
 
@@ -720,7 +1084,7 @@ def admin_dashboard():
     conn.close()
 
     return render_template(
-        'admin/admin_dashboard.html',
+        'admin/admin_analytics.html',
         total_students=total_students,
         total_faculty=total_faculty,
         total_requests=total_requests,
@@ -867,6 +1231,100 @@ def admin_create_user():
 
     return render_template('admin/create_user.html')
 
+@app.route('/admin_requests')
+def admin_requests():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    # Fetch all requests with student and assigned faculty info
+    cur.execute("""
+        SELECT r.req_id, r.category, r.description, r.status, r.created_at,
+               r.assigned_faculty_id,
+               u.name as student_name, s.roll_no, s.dept_id,
+               f_user.name as assigned_faculty_name
+        FROM swd_requests r
+        JOIN students s ON r.student_id = s.student_id
+        JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN faculty f ON r.assigned_faculty_id = f.faculty_id
+        LEFT JOIN users f_user ON f.user_id = f_user.user_id
+        ORDER BY r.created_at DESC
+    """)
+    requests = cur.fetchall()
+    
+    # Fetch all faculty for the forward dropdown
+    cur.execute("""
+        SELECT f.faculty_id, u.name, f.dept_id
+        FROM faculty f
+        JOIN users u ON f.user_id = u.user_id
+        ORDER BY u.name
+    """)
+    faculty_list = cur.fetchall()
+    
+    conn.close()
+
+    return render_template('admin/admin_requests.html', requests=requests, faculty_list=faculty_list)
+
+@app.route('/admin_resolve_request/<int:req_id>', methods=['POST'])
+def admin_resolve_request(req_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    action = request.form.get('action')  # 'approved', 'rejected', or 'pending'
+    
+    if action not in ['approved', 'rejected', 'pending']:
+        flash("Invalid action", "danger")
+        return redirect(url_for('admin_requests'))
+
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # If resetting to pending, also clear the faculty assignment
+    if action == 'pending':
+        cur.execute("""
+            UPDATE swd_requests
+            SET status = %s, assigned_faculty_id = NULL
+            WHERE req_id = %s
+        """, (action, req_id))
+    else:
+        cur.execute("""
+            UPDATE swd_requests
+            SET status = %s
+            WHERE req_id = %s
+        """, (action, req_id))
+    
+    conn.commit()
+    conn.close()
+
+    flash(f"Request {action} successfully", "success")
+    return redirect(url_for('admin_requests'))
+
+@app.route('/admin_forward_request/<int:req_id>', methods=['POST'])
+def admin_forward_request(req_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    faculty_id = request.form.get('faculty_id')
+    
+    if not faculty_id:
+        flash("Please select a faculty member", "danger")
+        return redirect(url_for('admin_requests'))
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE swd_requests
+        SET assigned_faculty_id = %s
+        WHERE req_id = %s
+    """, (faculty_id, req_id))
+    conn.commit()
+    conn.close()
+
+    flash("Request forwarded to faculty successfully", "success")
+    return redirect(url_for('admin_requests'))
+
 # =============================================================
 # LOGOUT
 # =============================================================
@@ -875,6 +1333,307 @@ def logout():
     session.clear()
     flash("Logged out", "info")
     return redirect(url_for('home'))
+
+
+
+@app.route('/admin_manage_students')
+def admin_manage_students():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Fetch all students with details
+    cur.execute("""
+        SELECT s.student_id, s.roll_no, s.year_of_study, s.dept_id,
+               u.name, u.email, d.dept_name
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        JOIN departments d ON s.dept_id = d.dept_id
+        ORDER BY d.dept_name, s.year_of_study, s.roll_no
+    """)
+    students = cur.fetchall()
+    conn.close()
+
+    # Structure data: { 'Dept A': { 1: [students], 2: [students] } }
+    structured_data = {}
+    for student in students:
+        dept = student['dept_name']
+        year = student['year_of_study']
+        
+        if dept not in structured_data:
+            structured_data[dept] = {}
+        
+        if year not in structured_data[dept]:
+            structured_data[dept][year] = []
+            
+        structured_data[dept][year].append(student)
+
+    return render_template('admin/manage_students.html', structured_data=structured_data)
+
+@app.route('/admin_delete_student/<int:student_id>', methods=['POST'])
+def admin_delete_student(student_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    # Get user_id associated with student
+    cur.execute("SELECT user_id FROM students WHERE student_id=%s", (student_id,))
+    student = cur.fetchone()
+    
+    if student:
+        user_id = student['user_id']
+        cur.execute("DELETE FROM users WHERE user_id=%s", (user_id,))
+        conn.commit()
+        flash("Student deleted successfully", "success")
+    else:
+        flash("Student not found", "danger")
+        
+    conn.close()
+    return redirect(url_for('admin_manage_students'))
+
+@app.route('/admin_edit_student/<int:student_id>', methods=['GET', 'POST'])
+def admin_edit_student(student_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+        
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        roll_no = request.form['roll_no']
+        year = request.form['year_of_study']
+        dept_id = request.form['dept_id']
+        
+        # Get user_id
+        cur.execute("SELECT user_id FROM students WHERE student_id=%s", (student_id,))
+        res = cur.fetchone()
+        if res:
+            user_id = res['user_id']
+            
+            # Update Users table
+            cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s", (name, email, user_id))
+            
+            # Update Students table
+            cur.execute("""
+                UPDATE students 
+                SET roll_no=%s, year_of_study=%s, dept_id=%s 
+                WHERE student_id=%s
+            """, (roll_no, year, dept_id, student_id))
+            
+            conn.commit()
+            flash("Student updated successfully", "success")
+            conn.close()
+            return redirect(url_for('admin_manage_students'))
+            
+    # GET: Fetch student data and departments
+    cur.execute("""
+        SELECT s.student_id, s.roll_no, s.year_of_study, s.dept_id,
+               u.name, u.email, d.dept_name
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        JOIN departments d ON s.dept_id = d.dept_id
+        WHERE s.student_id=%s
+    """, (student_id,))
+    student = cur.fetchone()
+    
+    cur.execute("SELECT * FROM departments")
+    departments = cur.fetchall()
+    
+    conn.close()
+    
+    if not student:
+        flash("Student not found", "danger")
+        return redirect(url_for('admin_manage_students'))
+        
+    return render_template('admin/edit_student.html', student=student, departments=departments)
+
+
+# =============================================================
+# MAIN
+# =============================================================
+@app.route('/admin_manage_faculty')
+def admin_manage_faculty():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT f.faculty_id, f.dept_id,
+               u.name, u.email, d.dept_name
+        FROM faculty f
+        JOIN users u ON f.user_id = u.user_id
+        JOIN departments d ON f.dept_id = d.dept_id
+        ORDER BY d.dept_name, u.name
+    """)
+    faculty_list = cur.fetchall()
+    conn.close()
+
+    # Structure data: { 'Dept A': [faculty, ...], ... }
+    structured_data = {}
+    for f in faculty_list:
+        dept = f['dept_name']
+        if dept not in structured_data:
+            structured_data[dept] = []
+        structured_data[dept].append(f)
+
+    return render_template('admin/manage_faculty.html', structured_data=structured_data)
+
+@app.route('/admin_delete_faculty/<int:faculty_id>', methods=['POST'])
+def admin_delete_faculty(faculty_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    cur.execute("SELECT user_id FROM faculty WHERE faculty_id=%s", (faculty_id,))
+    faculty = cur.fetchone()
+    
+    if faculty:
+        user_id = faculty['user_id']
+        cur.execute("DELETE FROM users WHERE user_id=%s", (user_id,))
+        conn.commit()
+        flash("Faculty deleted successfully", "success")
+    else:
+        flash("Faculty not found", "danger")
+        
+    conn.close()
+    return redirect(url_for('admin_manage_faculty'))
+
+@app.route('/admin_edit_faculty/<int:faculty_id>', methods=['GET', 'POST'])
+def admin_edit_faculty(faculty_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+        
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        dept_id = request.form['dept_id']
+        
+        cur.execute("SELECT user_id FROM faculty WHERE faculty_id=%s", (faculty_id,))
+        res = cur.fetchone()
+        if res:
+            user_id = res['user_id']
+            cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s", (name, email, user_id))
+            cur.execute("UPDATE faculty SET dept_id=%s WHERE faculty_id=%s", (dept_id, faculty_id))
+            conn.commit()
+            flash("Faculty updated successfully", "success")
+            conn.close()
+            return redirect(url_for('admin_manage_faculty'))
+            
+    cur.execute("""
+        SELECT f.faculty_id, f.dept_id,
+               u.name, u.email, d.dept_name
+        FROM faculty f
+        JOIN users u ON f.user_id = u.user_id
+        JOIN departments d ON f.dept_id = d.dept_id
+        WHERE f.faculty_id=%s
+    """, (faculty_id,))
+    faculty = cur.fetchone()
+    
+    cur.execute("SELECT * FROM departments")
+    departments = cur.fetchall()
+    
+    conn.close()
+    
+    if not faculty:
+        flash("Faculty not found", "danger")
+        return redirect(url_for('admin_manage_faculty'))
+        
+    return render_template('admin/edit_faculty.html', faculty=faculty, departments=departments)
+
+
+# =============================================================
+# MAIN
+# =============================================================
+@app.route('/admin_manage_departments')
+def admin_manage_departments():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM departments ORDER BY dept_id")
+    departments = cur.fetchall()
+    conn.close()
+    
+    return render_template('admin/manage_departments.html', departments=departments)
+
+@app.route('/admin_add_department', methods=['POST'])
+def admin_add_department():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+        
+    dept_name = request.form['dept_name']
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO departments (dept_name) VALUES (%s)", (dept_name,))
+        conn.commit()
+        flash("Department added successfully", "success")
+    except Exception as e:
+        flash(f"Error adding department: {e}", "danger")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin_manage_departments'))
+
+@app.route('/admin_edit_department/<int:dept_id>', methods=['GET', 'POST'])
+def admin_edit_department(dept_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+        
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        dept_name = request.form['dept_name']
+        cur.execute("UPDATE departments SET dept_name=%s WHERE dept_id=%s", (dept_name, dept_id))
+        conn.commit()
+        conn.close()
+        flash("Department updated successfully", "success")
+        return redirect(url_for('admin_manage_departments'))
+        
+    cur.execute("SELECT * FROM departments WHERE dept_id=%s", (dept_id,))
+    department = cur.fetchone()
+    conn.close()
+    
+    if not department:
+        flash("Department not found", "danger")
+        return redirect(url_for('admin_manage_departments'))
+        
+    return render_template('admin/edit_department.html', department=department)
+
+@app.route('/admin_delete_department/<int:dept_id>', methods=['POST'])
+def admin_delete_department(dept_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+        
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM departments WHERE dept_id=%s", (dept_id,))
+        conn.commit()
+        flash("Department deleted successfully", "success")
+    except Exception as e:
+        # Constraint error likely if students/faculty exist
+        flash("Cannot delete department. It may be linked to existing students or faculty.", "danger")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin_manage_departments'))
 
 
 # =============================================================

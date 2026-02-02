@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="d-flex justify-between mb-4">
+    <h2 class="card-title" style="margin-bottom: 0;">My Courses</h2>
+    <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+  </div>
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Credits</th>
+          <th>Semester</th>
+          <th>Grade</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in courses %}
+        <tr>
+          <td>{{ c.course_name }}</td>
+          <td>{{ c.credits }}</td>
+          <td>{{ c.semester }}</td>
+          <td>
+            {% if c.grade %}
+            <span class="badge {{ 'approved' if c.grade != 'F' else 'rejected' }}">{{ c.grade }}</span>
+            {% else %}
+            <span class="text-muted">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted">No courses found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

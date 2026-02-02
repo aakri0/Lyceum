@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <div class="d-flex justify-between mb-4">
+    <h2 class="card-title" style="margin-bottom: 0;">Academic Progress</h2>
+    <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+  </div>
+
+  {% if data|length == 0 %}
+  <div class="alert info text-center">
+    <p style="margin: 0;">No academic data available yet. Grades will appear here once your courses are graded.</p>
+  </div>
+  {% else %}
+
+  <!-- Cumulative CGPA Display -->
+  <div
+    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 12px; text-align: center; margin-bottom: 2rem;">
+    <p style="margin: 0; color: white; opacity: 0.9; font-size: 1.1em;">Cumulative CGPA</p>
+    <p style="margin: 0.5rem 0 0 0; color: white; font-size: 4em; font-weight: 700;">
+      {{ cumulative_cgpa if cumulative_cgpa else 'N/A' }}
+    </p>
+  </div>
+
+  <div style="background: #F8FAFC; padding: 2rem; border-radius: var(--radius); margin-bottom: 1rem;">
+    <canvas id="gpaChart" style="max-height: 400px;"></canvas>
+  </div>
+
+  <!-- GPA Summary Table -->
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Semester</th>
+          <th>GPA</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in data %}
+        <tr>
+          <td>Semester {{ item.semester }}</td>
+          <td><strong>{{ item.gpa }}</strong> / 10.0</td>
+          <td>
+            {% if item.gpa >= 8.0 %}
+            <span class="badge approved">Excellent</span>
+            {% elif item.gpa >= 6.0 %}
+            <span class="badge pending">Good</span>
+            {% else %}
+            <span class="badge rejected">Needs Improvement</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script id="gpa-data" type="application/json">
+      {{ data | tojson }}
+    </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    const gpaData = JSON.parse(
+      document.getElementById('gpa-data').textContent
+    );
+
+    const semesters = gpaData.map(x => "Semester " + x.semester);
+    const gpas = gpaData.map(x => x.gpa);
+
+    new Chart(document.getElementById('gpaChart'), {
+      type: 'line',
+      data: {
+        labels: semesters,
+        datasets: [{
+          label: 'GPA',
+          data: gpas,
+          fill: true,
+          backgroundColor: 'rgba(79, 70, 229, 0.1)',
+          borderColor: 'rgb(79, 70, 229)',
+          borderWidth: 3,
+          tension: 0.4,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgb(79, 70, 229)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              font: { size: 14, family: 'Inter' },
+              padding: 20
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14 },
+            bodyFont: { size: 13 },
+            callbacks: {
+              label: function (context) {
+                return 'GPA: ' + context.parsed.y.toFixed(2) + ' / 10.0';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 10,
+            ticks: {
+              stepSize: 1,
+              font: { size: 12 }
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 12 }
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  </script>
+  {% endif %}
+</div>
+
+{% endblock %}

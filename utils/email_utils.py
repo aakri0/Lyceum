@@ -17,3 +17,15 @@ def send_otp_email(to_email, otp):
     server.login(EMAIL, PASSWORD)
     server.send_message(msg)
     server.quit()
+
+def send_password_reset_email(to_email, reset_link):
+    msg = MIMEText(f"You requested a password reset for your ERP account.\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link is valid for 15 minutes.\n\nIf you did not request this reset, please ignore this email.")
+    msg["Subject"] = "ERP Password Reset Request"
+    msg["From"] = EMAIL
+    msg["To"] = to_email
+
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+    server.starttls()
+    server.login(EMAIL, PASSWORD)
+    server.send_message(msg)
+    server.quit()
