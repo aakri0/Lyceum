@@ -187,6 +187,7 @@ CREATE TABLE `students` (
   `roll_no` varchar(20) NOT NULL,
   `dept_id` int DEFAULT NULL,
   `year_of_study` int DEFAULT NULL,
+  `current_semester` int DEFAULT 1,
   PRIMARY KEY (`student_id`),
   UNIQUE KEY `roll_no` (`roll_no`),
   UNIQUE KEY `user_id` (`user_id`),

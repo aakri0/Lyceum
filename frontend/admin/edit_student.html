@@ -25,7 +25,7 @@
                                 <input type="text" name="roll_no" class="form-control" value="{{ student.roll_no }}"
                                     required>
                             </div>
-                            <div class="col-md-6 form-group mb-3">
+                            <div class="col-md-4 form-group mb-3">
                                 <label>Year of Study</label>
                                 <select name="year_of_study" class="form-control" required>
                                     <option value="1" {% if student.year_of_study==1 %}selected{% endif %}>1st Year
@@ -37,6 +37,11 @@
                                     <option value="4" {% if student.year_of_study==4 %}selected{% endif %}>4th Year
                                     </option>
                                 </select>
+                            </div>
+                            <div class="col-md-4 form-group mb-3">
+                                <label>Current Semester</label>
+                                <input type="number" name="current_semester" class="form-control"
+                                    value="{{ student.current_semester or 1 }}" min="1" max="8" required>
                             </div>
                         </div>
 

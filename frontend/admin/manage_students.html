@@ -7,6 +7,37 @@
             style="width: auto; padding: 0.5rem 1rem;">Back to Dashboard</a>
     </div>
 
+    <div class="card mb-4 shadow-sm" style="border-left: 5px solid var(--primary);">
+        <div class="card-body">
+            <h5 class="card-title text-primary mb-3">🎓 Bulk Semester Promotion</h5>
+            <form action="{{ url_for('admin_bulk_promote') }}" method="POST" class="d-flex align-items-end gap-3"
+                onsubmit="return confirm('WARNING: This will promote ALL students from the selected semester to the target semester. This action affects the entire database. Are you sure?');">
+                <div style="flex: 1;">
+                    <label class="text-muted small mb-1">Promote students from:</label>
+                    <select name="from_semester" class="form-control" required>
+                        <option value="" disabled selected>Select Current Semester</option>
+                        {% for i in range(1, 9) %}
+                        <option value="{{ i }}">Semester {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="padding-bottom: 0.5rem; color: var(--text-muted);">
+                    ➔
+                </div>
+                <div style="flex: 1;">
+                    <label class="text-muted small mb-1">To new semester:</label>
+                    <select name="to_semester" class="form-control" required>
+                        <option value="" disabled selected>Select New Semester</option>
+                        {% for i in range(1, 9) %}
+                        <option value="{{ i }}">Semester {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="height: 38px;">Promote Batch</button>
+            </form>
+        </div>
+    </div>
+
     {% if not structured_data %}
     <div class="alert alert-info">No students found in the database.</div>
     {% else %}
@@ -25,7 +56,8 @@
                             <th>Roll No</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th style="width: 150px;">Actions</th>
+                            <th>Semester</th>
+                            <th style="width: 300px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -34,11 +66,30 @@
                             <td>{{ student.roll_no }}</td>
                             <td>{{ student.name }}</td>
                             <td>{{ student.email }}</td>
+                            <td><span class="badge" style="background: #e2e8f0; color: #475569;">Sem {{
+                                    student.current_semester or '-' }}</span></td>
                             <td>
-                                <div style="display: flex; gap: 0.5rem;">
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+
+                                    <form action="{{ url_for('admin_update_semester', student_id=student.student_id) }}"
+                                        method="POST" style="display: flex; gap: 0.25rem;">
+                                        <select name="semester" class="form-control"
+                                            style="width: 70px; padding: 0.25rem; font-size: 0.9rem; height: auto;">
+                                            {% for i in range(1, 9) %}
+                                            <option value="{{ i }}" {% if student.current_semester==i %}selected{% endif
+                                                %}>{{ i }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-secondary" title="Update Semester"
+                                            style="width: auto; padding: 0.25rem 0.6rem; font-size: 0.9rem;">
+                                            ✓
+                                        </button>
+                                    </form>
+
                                     <a href="{{ url_for('admin_edit_student', student_id=student.student_id) }}"
                                         class="btn btn-warning"
                                         style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Edit</a>
+
                                     <form action="{{ url_for('admin_delete_student', student_id=student.student_id) }}"
                                         method="POST" style="display:inline;"
                                         onsubmit="return confirm('Are you sure you want to delete this student? This will permanently remove their account and all records.');">

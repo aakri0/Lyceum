@@ -504,6 +504,54 @@ def student_progress():
 
 
 # =============================================================
+# GRADE SIMULATOR
+# =============================================================
+@app.route('/grade_simulator')
+def grade_simulator():
+    if 'student_id' not in session:
+        return redirect(url_for('student_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # 1. Fetch ALL enrollments (graded and ungraded)
+    cur.execute("""
+        SELECT e.semester, e.grade, c.course_id, c.course_name, c.credits, s.current_semester
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.course_id
+        JOIN students s ON e.student_id = s.student_id
+        WHERE e.student_id = %s AND e.semester = s.current_semester
+        ORDER BY c.course_name
+    """, (session['student_id'],))
+    all_enrollments = cur.fetchall()
+    conn.close()
+
+    total_points = 0
+    total_credits = 0
+    grade_map = {
+        'A': 10, 'A+': 10, 'B': 8, 'B+': 9,
+        'C': 6, 'C+': 7, 'D': 4, 'D+': 5, 'F': 0
+    }
+
+    # Calculate Current Real CGPA
+    for record in all_enrollments:
+        if record['grade']:
+            try:
+                gp = float(record['grade'])
+            except (ValueError, TypeError):
+                gp = grade_map.get(str(record['grade']).upper(), 0)
+            
+            total_points += gp * record['credits']
+            total_credits += record['credits']
+
+    current_cgpa = round(total_points / total_credits, 2) if total_credits > 0 else 0.0
+
+    return render_template('student/grade_simulator.html', 
+                           current_cgpa=current_cgpa,
+                           enrollments=all_enrollments)
+
+
+# =============================================================
 # FACULTY
 # =============================================================
 @app.route('/faculty_login', methods=['GET', 'POST'])
@@ -1233,13 +1281,14 @@ def admin_create_user():
             if role == 'student':
                 # Minimal required student fields
                 cur.execute("""
-                    INSERT INTO students (user_id, roll_no, dept_id, year_of_study)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO students (user_id, roll_no, dept_id, year_of_study, current_semester)
+                    VALUES (%s, %s, %s, %s, %s)
                 """, (
                     user_id,
                     request.form['roll_no'],
                     request.form['dept_id'],
-                    request.form['year_of_study']
+                    request.form['year_of_study'],
+                    request.form['current_semester']
                 ))
 
             elif role == 'faculty':
@@ -1378,7 +1427,7 @@ def admin_manage_students():
 
     # Fetch all students with details
     cur.execute("""
-        SELECT s.student_id, s.roll_no, s.year_of_study, s.dept_id,
+        SELECT s.student_id, s.roll_no, s.year_of_study, s.current_semester, s.dept_id,
                u.name, u.email, d.dept_name
         FROM students s
         JOIN users u ON s.user_id = u.user_id
@@ -1403,6 +1452,61 @@ def admin_manage_students():
         structured_data[dept][year].append(student)
 
     return render_template('admin/manage_students.html', structured_data=structured_data)
+
+@app.route('/admin_update_semester/<int:student_id>', methods=['POST'])
+def admin_update_semester(student_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    new_semester = request.form.get('semester')
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        UPDATE students
+        SET current_semester = %s
+        WHERE student_id = %s
+    """, (new_semester, student_id))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f"Student updated to Semester {new_semester}", "success")
+    return redirect(url_for('admin_manage_students'))
+
+@app.route('/admin_bulk_promote', methods=['POST'])
+def admin_bulk_promote():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
+    from_sem = request.form.get('from_semester')
+    to_sem = request.form.get('to_semester')
+
+    if not from_sem or not to_sem:
+        flash("Please select both semesters.", "danger")
+        return redirect(url_for('admin_manage_students'))
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE students
+        SET current_semester = %s
+        WHERE current_semester = %s
+    """, (to_sem, from_sem))
+    
+    rows_affected = cur.rowcount
+    conn.commit()
+    conn.close()
+
+    if rows_affected > 0:
+        flash(f"Successfully promoted {rows_affected} students from Sem {from_sem} to Sem {to_sem}.", "success")
+    else:
+        flash(f"No students found in Semester {from_sem}.", "info")
+
+    return redirect(url_for('admin_manage_students'))
+
 
 @app.route('/admin_delete_student/<int:student_id>', methods=['POST'])
 def admin_delete_student(student_id):
@@ -1440,6 +1544,7 @@ def admin_edit_student(student_id):
         email = request.form['email']
         roll_no = request.form['roll_no']
         year = request.form['year_of_study']
+        current_sem = request.form['current_semester']
         dept_id = request.form['dept_id']
         
         # Get user_id
@@ -1454,9 +1559,9 @@ def admin_edit_student(student_id):
             # Update Students table
             cur.execute("""
                 UPDATE students 
-                SET roll_no=%s, year_of_study=%s, dept_id=%s 
+                SET roll_no=%s, year_of_study=%s, current_semester=%s, dept_id=%s 
                 WHERE student_id=%s
-            """, (roll_no, year, dept_id, student_id))
+            """, (roll_no, year, current_sem, dept_id, student_id))
             
             conn.commit()
             flash("Student updated successfully", "success")
@@ -1465,7 +1570,7 @@ def admin_edit_student(student_id):
             
     # GET: Fetch student data and departments
     cur.execute("""
-        SELECT s.student_id, s.roll_no, s.year_of_study, s.dept_id,
+        SELECT s.student_id, s.roll_no, s.year_of_study, s.current_semester, s.dept_id,
                u.name, u.email, d.dept_name
         FROM students s
         JOIN users u ON s.user_id = u.user_id
