@@ -567,17 +567,18 @@ def faculty_dashboard():
     if faculty_id and 'faculty_id' not in session:
         session['faculty_id'] = faculty_id
 
-    # SWD Requests forwarded to this faculty
-    cur.execute("""
-        SELECT r.req_id, r.category, r.description, r.status, 
-               s.roll_no, u.name as student_name
-        FROM swd_requests r
-        JOIN students s ON r.student_id=s.student_id
-        JOIN users u ON s.user_id=u.user_id
-        WHERE r.assigned_faculty_id=%s
-        ORDER BY r.created_at DESC
-    """, (faculty_id,))
-    requests = cur.fetchall()
+    conn.close()
+
+    return render_template('faculty/faculty_dashboard.html')
+
+
+@app.route('/faculty_courses')
+def faculty_courses():
+    if 'dept_id' not in session:
+        return redirect(url_for('faculty_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
 
     # Courses by faculty department
     cur.execute("""
@@ -588,12 +589,43 @@ def faculty_dashboard():
     courses = cur.fetchall()
 
     conn.close()
+    return render_template('faculty/faculty_courses.html', courses=courses)
 
-    return render_template(
-        'faculty/faculty_dashboard.html',
-        requests=requests,
-        courses=courses
-    )
+
+@app.route('/faculty_requests')
+def faculty_requests():
+    if 'dept_id' not in session:
+        return redirect(url_for('faculty_login'))
+
+    if 'faculty_id' not in session:
+         conn = get_connection()
+         cur = conn.cursor(dictionary=True)
+         cur.execute("SELECT faculty_id FROM faculty WHERE user_id=%s", (session.get('user_id'),))
+         faculty_data = cur.fetchone()
+         session['faculty_id'] = faculty_data['faculty_id'] if faculty_data else None
+         conn.close()
+
+    if not session.get('faculty_id'):
+        flash("Faculty profile not found", "error")
+        return redirect(url_for('faculty_dashboard'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # SWD Requests forwarded to this faculty
+    cur.execute("""
+        SELECT r.req_id, r.category, r.description, r.status, 
+               s.roll_no, u.name as student_name
+        FROM swd_requests r
+        JOIN students s ON r.student_id=s.student_id
+        JOIN users u ON s.user_id=u.user_id
+        WHERE r.assigned_faculty_id=%s
+        ORDER BY r.created_at DESC
+    """, (session['faculty_id'],))
+    requests = cur.fetchall()
+    
+    conn.close()
+    return render_template('faculty/faculty_requests.html', requests=requests)
 
 
 @app.route('/faculty_add_course', methods=['GET', 'POST'])
