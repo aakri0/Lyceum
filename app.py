@@ -1,18 +1,64 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_bcrypt import Bcrypt
-from db import get_connection
-import random
-from datetime import date
-from datetime import datetime, timedelta
-from utils.email_utils import send_otp_email, send_password_reset_email
 import csv
 import io
-from flask import Response
+import logging
+import os
+import random
+import secrets
 import uuid
+from datetime import date, datetime, timedelta
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
+from flask_bcrypt import Bcrypt
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from mysql.connector import Error
 
+from db import close_tracked_connections, get_connection
+from utils.email_utils import send_otp_email, send_password_reset_email
+
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__, template_folder='frontend')
-app.secret_key = "supersecretkey"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+if not app.secret_key:
+    raise RuntimeError(
+        "FLASK_SECRET_KEY is not set. Copy .env.example to .env and set a strong "
+        "random value (e.g. `openssl rand -hex 32`)."
+    )
+
+# Session cookie hardening. SECURE defaults to off for local dev; set
+# SESSION_COOKIE_SECURE=1 in production (requires HTTPS).
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "0") == "1",
+    WTF_CSRF_TIME_LIMIT=None,  # token lives as long as the session
+)
+
+csrf = CSRFProtect(app)
+
+# Rate limiter. Defaults to in-memory storage — set RATELIMIT_STORAGE_URI
+# (e.g. redis://localhost:6379) in production for a shared, persistent store.
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+    default_limits=[],
+)
+
+
+@app.teardown_appcontext
+def _release_db_connections(exc):
+    close_tracked_connections()
 
 @app.template_filter('ordinal_year')
 def ordinal_year_filter(year):
@@ -24,7 +70,7 @@ def ordinal_year_filter(year):
         if y == 2: return "2nd Year"
         if y == 3: return "3rd Year"
         return f"{y}th Year"
-    except:
+    except (ValueError, TypeError):
         return f"Year {year}"
 
 bcrypt = Bcrypt(app)
@@ -40,6 +86,7 @@ def home():
 # STUDENT LOGIN + OTP
 # =============================================================
 @app.route('/student_login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def student_login():
     if request.method == 'POST':
         email = request.form['email'].strip()
@@ -85,6 +132,7 @@ def student_login():
 
 
 @app.route('/verify_otp', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 30 per hour", methods=["POST"])
 def verify_otp():
     if request.method == 'POST':
         otp = request.form['otp'].strip()
@@ -152,6 +200,7 @@ def verify_otp():
 
 
 @app.route('/resend_otp')
+@limiter.limit("3 per minute; 10 per hour")
 def resend_otp():
     user_id = session.get('temp_user')
     if not user_id:
@@ -178,6 +227,7 @@ def resend_otp():
     return redirect(url_for('verify_otp'))
 
 @app.route('/force_reset_password', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 30 per hour", methods=["POST"])
 def force_reset_password():
     if 'user_id' not in session:
         return redirect(url_for('home'))
@@ -188,6 +238,10 @@ def force_reset_password():
 
         if pwd != confirm:
             flash("Passwords do not match", "danger")
+            return redirect(url_for('force_reset_password'))
+
+        if len(pwd) < 8:
+            flash("Password must be at least 8 characters long.", "danger")
             return redirect(url_for('force_reset_password'))
 
         hashed = bcrypt.generate_password_hash(pwd).decode()
@@ -207,6 +261,7 @@ def force_reset_password():
 
     return render_template('force_reset_password.html')
 @app.route('/forgot_password', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def forgot_password():
     if request.method == 'POST':
         email = request.form['email']
@@ -225,7 +280,7 @@ def forgot_password():
             """, (user['user_id'], token))
             conn.commit()
 
-            reset_link = f"http://127.0.0.1:5000/reset_password/{token}"
+            reset_link = url_for('reset_password', token=token, _external=True)
             send_password_reset_email(email, reset_link)
 
         conn.close()
@@ -235,6 +290,7 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 30 per hour")
 def reset_password(token):
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
@@ -255,6 +311,10 @@ def reset_password(token):
 
         if pwd != confirm:
             flash("Passwords do not match", "danger")
+            return redirect(request.url)
+
+        if len(pwd) < 8:
+            flash("Password must be at least 8 characters long.", "danger")
             return redirect(request.url)
 
         hashed = bcrypt.generate_password_hash(pwd).decode()
@@ -555,6 +615,7 @@ def grade_simulator():
 # FACULTY
 # =============================================================
 @app.route('/faculty_login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def faculty_login():
     if request.method == 'POST':
         email = request.form['email'].strip()
@@ -601,7 +662,7 @@ def faculty_login():
 
 @app.route('/faculty_dashboard')
 def faculty_dashboard():
-    if 'dept_id' not in session:
+    if session.get('role') != 'faculty' or 'dept_id' not in session:
         return redirect(url_for('faculty_login'))
 
     conn = get_connection()
@@ -622,7 +683,7 @@ def faculty_dashboard():
 
 @app.route('/faculty_courses')
 def faculty_courses():
-    if 'dept_id' not in session:
+    if session.get('role') != 'faculty' or 'dept_id' not in session:
         return redirect(url_for('faculty_login'))
 
     conn = get_connection()
@@ -642,7 +703,7 @@ def faculty_courses():
 
 @app.route('/faculty_requests')
 def faculty_requests():
-    if 'dept_id' not in session:
+    if session.get('role') != 'faculty' or 'dept_id' not in session:
         return redirect(url_for('faculty_login'))
 
     if 'faculty_id' not in session:
@@ -729,7 +790,8 @@ def faculty_enroll():
             if e.errno == 1062:
                 flash("Student already enrolled in this course for this semester", "danger")
             else:
-                flash(f"Error enrolling student: {e}", "danger")
+                logger.exception("Error enrolling student")
+                flash("Error enrolling student. Please try again.", "danger")
 
     conn.close()
     return render_template(
@@ -1057,6 +1119,7 @@ def faculty_course_students(course_id):
 # ADMIN
 # =============================================================
 @app.route('/admin_login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def admin_login():
     if request.method == 'POST':
         email = request.form['email'].strip()
@@ -1178,6 +1241,9 @@ def admin_analytics():
 
 @app.route('/admin_audit_logs')
 def admin_audit_logs():
+    if session.get('role') != 'admin':
+        return redirect(url_for('admin_login'))
+
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
 
@@ -1266,7 +1332,8 @@ def admin_create_user():
             flash("User with this email already exists.", "danger")
             return redirect(url_for('admin_create_user'))
 
-        hashed = bcrypt.generate_password_hash("test123").decode()
+        temp_password = secrets.token_urlsafe(9)
+        hashed = bcrypt.generate_password_hash(temp_password).decode()
 
         try:
             # 1️⃣ Insert into users
@@ -1301,10 +1368,15 @@ def admin_create_user():
                 ))
 
             conn.commit()
-            flash("User created successfully. Default password is test123.", "success")
+            flash(
+                f"User created successfully. Temporary password: {temp_password} "
+                f"— share securely; the user must change it on first login.",
+                "success",
+            )
 
-        except Error as e:
+        except Error:
             conn.rollback()
+            logger.exception("Error creating user")
             flash("Error creating user.", "danger")
 
         finally:
@@ -1720,8 +1792,9 @@ def admin_add_department():
         cur.execute("INSERT INTO departments (dept_name) VALUES (%s)", (dept_name,))
         conn.commit()
         flash("Department added successfully", "success")
-    except Exception as e:
-        flash(f"Error adding department: {e}", "danger")
+    except Exception:
+        logger.exception("Error adding department")
+        flash("Error adding department. Please try again.", "danger")
     finally:
         conn.close()
         
@@ -1777,4 +1850,7 @@ def admin_delete_department(dept_id):
 # MAIN
 # =============================================================
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    host = os.environ.get("FLASK_HOST", "127.0.0.1")
+    port = int(os.environ.get("FLASK_PORT", "5000"))
+    app.run(host=host, port=port, debug=debug)

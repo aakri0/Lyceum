@@ -12,6 +12,7 @@
     </div>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <input type="text" name="otp" placeholder="0 0 0 0 0 0" required maxlength="6" autofocus
           style="text-align: center; letter-spacing: 0.5rem; font-size: 1.5rem; font-weight: 600; padding: 1rem;">

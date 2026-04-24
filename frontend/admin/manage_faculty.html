@@ -38,6 +38,7 @@
                                     <form action="{{ url_for('admin_delete_faculty', faculty_id=faculty.faculty_id) }}"
                                         method="POST" style="display:inline;"
                                         onsubmit="return confirm('Are you sure you want to delete this faculty member? This will permanently remove their account.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-danger"
                                             style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Delete</button>
                                     </form>

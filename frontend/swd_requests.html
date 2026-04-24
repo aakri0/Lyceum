@@ -41,6 +41,7 @@
         <td>{{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else '—' }}</td>
         <td>
           <form method="POST" action="{{ url_for('update_request_status', request_id=req.request_id) }}" class="d-flex">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="status" class="form-select form-select-sm me-2" required>
               <option value="Pending" {% if req.status=='Pending' %}selected{% endif %}>Pending</option>
               <option value="Approved" {% if req.status=='Approved' %}selected{% endif %}>Approved</option>
