@@ -1,0 +1,13 @@
+Flask>=3.0,<4.0
+Flask-Bcrypt>=1.0.1
+Flask-WTF>=1.2.1
+Flask-Limiter>=3.5.0
+mysql-connector-python>=8.4.0
+python-dotenv>=1.0.1
+
+# Optional: analytics sandbox (test/test.py)
+matplotlib>=3.8.0
+numpy>=1.26.0
+
+# Optional: production WSGI server
+gunicorn>=21.2.0

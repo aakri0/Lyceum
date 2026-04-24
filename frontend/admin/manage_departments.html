@@ -10,6 +10,7 @@
     <h3 class="card-title mb-4">Add New Department</h3>
     <form action="{{ url_for('admin_add_department') }}" method="POST" class="d-flex gap-3 align-items-end"
         style="width: 100%;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="flex: 1;">
             <label for="dept_name" class="form-label">Department Name</label>
             <input type="text" class="form-control" id="dept_name" name="dept_name"
@@ -50,6 +51,7 @@
                             <form action="{{ url_for('admin_delete_department', dept_id=dept.dept_id) }}" method="POST"
                                 style="display:inline;"
                                 onsubmit="return confirm('Are you sure? This might affect students/faculty linked to this department.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-danger"
                                     style="width: auto; padding: 0.4rem 1rem; font-size: 0.9rem;">Delete</button>
                             </form>

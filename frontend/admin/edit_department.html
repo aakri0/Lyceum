@@ -9,6 +9,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="form-group mb-4">
                             <label>Department Name</label>
                             <input type="text" name="dept_name" class="form-control" value="{{ department.dept_name }}"

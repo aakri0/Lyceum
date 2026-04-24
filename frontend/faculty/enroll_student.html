@@ -8,6 +8,7 @@
     </div>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <label>Select Course</label>
         <select name="course_id" required>

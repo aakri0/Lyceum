@@ -54,6 +54,7 @@
                         <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
                             <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
                                 style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="approved">
                                 <button type="submit" class="btn btn-primary"
                                     style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
@@ -62,6 +63,7 @@
                             </form>
                             <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
                                 style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="rejected">
                                 <button type="submit" class="btn"
                                     style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white;">
@@ -70,6 +72,7 @@
                             </form>
                             <form method="POST" action="{{ url_for('admin_resolve_request', req_id=req.req_id) }}"
                                 style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="pending">
                                 <button type="submit" class="btn"
                                     style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #F59E0B; color: white;">
@@ -78,6 +81,7 @@
                             </form>
                             <form method="POST" action="{{ url_for('admin_forward_request', req_id=req.req_id) }}"
                                 style="margin: 0; display: flex; gap: 0.2rem;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="faculty_id" required
                                     style="font-size: 0.8rem; padding: 0.3rem; width: 100px;">
                                     <option value="">Select Faculty</option>

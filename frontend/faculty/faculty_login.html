@@ -4,6 +4,7 @@
     <div class="card auth-card">
         <h2 class="text-center mb-4">Faculty Login</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label>Email Address</label>
                 <input type="email" name="email" placeholder="Enter faculty email" required>

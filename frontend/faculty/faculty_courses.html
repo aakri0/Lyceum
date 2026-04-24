@@ -38,6 +38,7 @@
                             <form method="POST" action="{{ url_for('faculty_delete_course', course_id=c.course_id) }}"
                                 style="margin: 0;"
                                 onsubmit="return confirm('Are you sure you want to delete this course?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn"
                                     style="padding: 0.4rem 0.8rem; font-size: 0.85em; background: #EF4444; color: white; width: auto;">Delete</button>
                             </form>

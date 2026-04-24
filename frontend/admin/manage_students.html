@@ -12,6 +12,7 @@
             <h5 class="card-title text-primary mb-3">🎓 Bulk Semester Promotion</h5>
             <form action="{{ url_for('admin_bulk_promote') }}" method="POST" class="d-flex align-items-end gap-3"
                 onsubmit="return confirm('WARNING: This will promote ALL students from the selected semester to the target semester. This action affects the entire database. Are you sure?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div style="flex: 1;">
                     <label class="text-muted small mb-1">Promote students from:</label>
                     <select name="from_semester" class="form-control" required>
@@ -73,6 +74,7 @@
 
                                     <form action="{{ url_for('admin_update_semester', student_id=student.student_id) }}"
                                         method="POST" style="display: flex; gap: 0.25rem;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <select name="semester" class="form-control"
                                             style="width: 70px; padding: 0.25rem; font-size: 0.9rem; height: auto;">
                                             {% for i in range(1, 9) %}
@@ -93,6 +95,7 @@
                                     <form action="{{ url_for('admin_delete_student', student_id=student.student_id) }}"
                                         method="POST" style="display:inline;"
                                         onsubmit="return confirm('Are you sure you want to delete this student? This will permanently remove their account and all records.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-danger"
                                             style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Delete</button>
                                     </form>

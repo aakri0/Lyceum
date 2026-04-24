@@ -3,6 +3,7 @@
 <h2>Enter Grades</h2>
 
 <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <select name="component">
     <option>CIE</option>
     <option>QUIZ-1</option>

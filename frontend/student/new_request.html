@@ -8,6 +8,7 @@
     </div>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <label>Category</label>
         <input type="text" name="category" placeholder="E.g. Hostel, Library, Sports" required autofocus>
