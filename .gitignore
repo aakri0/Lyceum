@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Claude Code worktrees
+.claude/
+
 # Python
 __pycache__/
 *.py[cod]

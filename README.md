@@ -42,6 +42,9 @@ Most college workflows — checking grades, submitting a hostel request, updatin
 - [Configuration](#configuration)
 - [Database Setup](#database-setup)
 - [Running the Application](#running-the-application)
+- [Docker](#docker)
+- [Tests & CI](#tests--ci)
+- [Operations](#operations)
 - [Default Roles & Workflows](#default-roles--workflows)
 - [Security Notes](#security-notes)
 - [Contributing](#contributing)
@@ -141,11 +144,16 @@ A high-level ERD diagram is available in [`other/ERP.svg`](other/ERP.svg).
 │   └── icons/
 ├── sql/
 │   ├── schema.sql            # Database schema (tables, FKs, indexes)
-│   └── seed.sql              # Sample data
+│   ├── seed.sql              # Sample data
+│   └── migrations/           # Idempotent schema migrations
 ├── utils/
 │   ├── auth.py               # Session & role guards
-│   └── email_utils.py        # SMTP helpers (OTP, password reset)
+│   └── email_utils.py        # SMTP helpers (OTP, password reset, async)
+├── tests/                    # pytest smoke tests
 ├── test/                     # Analytics/plot sandbox
+├── Dockerfile                # Production image (gunicorn + healthcheck)
+├── docker-compose.yml        # Local stack: app + MySQL + Redis
+├── .github/workflows/ci.yml  # GitHub Actions CI
 └── other/
     └── ERP.svg               # Architecture/ERD diagram
 ```
@@ -215,6 +223,10 @@ All configuration is driven by environment variables loaded from a `.env` file i
 | `SMTP_PORT`             | SMTP port (STARTTLS)                                        | `587`                          |
 | `EMAIL_ADDRESS`         | Sender email                                                | `your.erp@gmail.com`           |
 | `EMAIL_PASSWORD`        | Gmail **App Password** (not your account password)          | `abcd efgh ijkl mnop`          |
+| `EMAIL_SEND_SYNC`       | `1` to block on send; `0` (default) dispatches on a thread  | `0`                            |
+| `SMTP_TIMEOUT`          | SMTP socket timeout (seconds)                               | `15`                           |
+| `BCRYPT_LOG_ROUNDS`     | bcrypt cost factor (12 recommended for 2026 hardware)       | `12`                           |
+| `RATELIMIT_STORAGE_URI` | Backend for Flask-Limiter (`memory://` or `redis://host:6379`) — **must be Redis/Memcached when running >1 worker** | `redis://localhost:6379`       |
 
 > **Never commit your `.env` file.** It is included in `.gitignore`.
 
@@ -259,10 +271,124 @@ gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ```
 
 For production deployments you should also:
-- Set `FLASK_DEBUG=0`
+- Set `FLASK_DEBUG=0` and `SESSION_COOKIE_SECURE=1`
 - Put the app behind a reverse proxy (Nginx, Caddy) terminating TLS
+- Point `RATELIMIT_STORAGE_URI` at Redis/Memcached (the in-memory default
+  silently breaks under multiple workers)
 - Use a managed MySQL instance with automated backups
 - Rotate `FLASK_SECRET_KEY` and credentials regularly
+- Probe `GET /healthz` from your load balancer or uptime monitor — it
+  returns `200 {"status":"ok","db":"ok"}` when the app and DB are healthy
+  and `503` otherwise
+
+---
+
+## Docker
+
+A `Dockerfile` and `docker-compose.yml` are provided. The compose stack
+brings up MySQL 8.4, Redis (for rate-limiting), and the Flask app under
+Gunicorn with a health check.
+
+```bash
+cp .env.example .env          # fill in FLASK_SECRET_KEY, DB_PASSWORD, EMAIL_*
+docker compose up --build
+```
+
+The app will be on `http://localhost:8000`. The MySQL volume `db_data`
+persists across restarts.
+
+The image runs as a non-root `appuser` (uid 1000) and uses a multi-stage,
+slim Python base. CI builds the image on every push to verify it stays
+buildable.
+
+---
+
+## Tests & CI
+
+A small smoke-test suite lives in `tests/`. It covers the contract that
+doesn't require a live database — security headers, CSRF rejection,
+`/healthz` behaviour, basic routing.
+
+```bash
+pytest -v
+```
+
+GitHub Actions runs the suite on Python 3.11 and 3.12 on every push and
+pull request, plus a Docker build smoke test (see
+`.github/workflows/ci.yml`).
+
+Integration tests live in `tests/test_integration.py` and use the
+`tests/conftest_integration.py` fixture, which creates a disposable
+`ERP_TEST_<pid>` database, loads `sql/schema.sql` plus every file in
+`sql/migrations/`, runs the test, and drops the database. They're skipped
+automatically when MySQL isn't reachable, so the suite still passes on a
+laptop with no server.
+
+To run them, point at a MySQL instance you don't mind getting a temporary
+DB created on:
+
+```bash
+DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=secret pytest tests/test_integration.py
+```
+
+---
+
+## Operations
+
+### Backups
+
+`scripts/backup_db.sh` produces a compressed `mysqldump` of `DB_NAME`,
+rotates older files, and (optionally) uploads to S3. It reads its
+credentials from the same env vars the app uses.
+
+```bash
+# Local-only: writes ./backups/ERP-<timestamp>.sql.gz, keeps last 14
+./scripts/backup_db.sh
+
+# Also upload to S3
+./scripts/backup_db.sh s3://my-bucket/erp-backups
+```
+
+A typical cron entry on the app host:
+
+```cron
+30 2 * * *  cd /opt/erp && ./scripts/backup_db.sh s3://my-bucket/erp-backups \
+              >> /var/log/erp-backup.log 2>&1
+```
+
+Test restores periodically — backups you haven't restored from are not
+backups.
+
+### Health & readiness probes
+
+Two endpoints are exposed for orchestration / uptime monitoring:
+
+| Path       | Purpose                                            | Failure modes                              |
+| ---------- | -------------------------------------------------- | ------------------------------------------ |
+| `/healthz` | Liveness + DB ping. Cheap; safe to call frequently | DB down → 503                              |
+| `/readyz`  | Liveness + DB + Redis (if configured) + SMTP       | Any configured dep unreachable → 503       |
+
+Point your load balancer (or `docker-compose` healthcheck — already wired)
+at `/healthz`. Point an external uptime monitor (UptimeRobot, BetterStack,
+Healthchecks.io) at `/readyz` so degradation in Redis or SMTP also pages.
+
+### Logs
+
+Logs go to stdout in the format
+`%(asctime)s %(levelname)s %(name)s: %(message)s`. The Docker image runs
+Gunicorn with `--access-logfile -` so request logs land on stdout too.
+
+For aggregation, the standard pattern is:
+
+- **Self-hosted VPS:** ship stdout to journald (already automatic under
+  systemd) and forward with `vector` / `promtail` to Loki or Elastic.
+- **Docker / k8s:** the runtime captures stdout; ship via the cluster's
+  log router (`fluent-bit`, `vector`).
+- **Cheapest hosted option:** Better Stack Logs or Grafana Cloud — both
+  have free tiers that handle this volume.
+
+Set `LOG_LEVEL=DEBUG` in `.env` to surface the SQL chatter and rate-limit
+decisions while debugging; default to `INFO` everywhere else.
 
 ---
 
@@ -280,7 +406,7 @@ Login flow: **email + password → 6-digit OTP sent via email → dashboard**.
 
 ## Security Notes
 
-- Passwords are stored as **bcrypt** hashes (`flask-bcrypt`); minimum length 8 on reset.
+- Passwords are stored as **bcrypt** hashes (`flask-bcrypt`) with a 12-round cost factor (configurable via `BCRYPT_LOG_ROUNDS`); minimum length 8 on reset.
 - OTPs are bcrypt-hashed at rest and expire after **5 minutes**; password reset tokens are UUID v4, single-use, and expire after **15 minutes**.
 - Admin-created accounts receive a one-time random password via `secrets.token_urlsafe` and are forced to reset on first login.
 - Session cookies are `HttpOnly` + `SameSite=Lax` by default; set `SESSION_COOKIE_SECURE=1` in production to require HTTPS.
@@ -292,6 +418,9 @@ Login flow: **email + password → 6-digit OTP sent via email → dashboard**.
 - Every state-changing form carries a `{{ csrf_token() }}` input, validated globally by Flask-WTF's `CSRFProtect`.
 - Login, OTP, password-reset, and resend endpoints are rate-limited with Flask-Limiter (in-memory by default; point `RATELIMIT_STORAGE_URI` at Redis/Memcached for multi-process deployments).
 - Database connections opened via `get_connection()` inside a request are tracked on `flask.g` and closed in `teardown_appcontext`, so a raised exception mid-route never leaks a connection.
+- Security headers (CSP, HSTS, X-Frame-Options=DENY, X-Content-Type-Options, Referrer-Policy) are set globally by Flask-Talisman; HSTS and force-https activate when `SESSION_COOKIE_SECURE=1`.
+- OTP and password-reset emails are dispatched on a background daemon thread, so a slow Gmail upstream cannot stall a request worker. Failures are logged via `logger.exception` (set `EMAIL_SEND_SYNC=1` in tests to surface errors).
+- `audit_logs` captures the originating IP (`X-Forwarded-For` aware) and User-Agent for every state-changing admin/faculty action.
 
 ---
 
