@@ -56,3 +56,19 @@ def test_healthz_ok_when_db_up(client):
 def test_404_path(client):
     resp = client.get("/this-route-does-not-exist")
     assert resp.status_code == 404
+
+
+def test_routes_registered_on_main_module(client):
+    """Regression: routes/*.py must register on the same Flask instance
+    that ``app.run()`` serves. If someone removes the
+    ``sys.modules.setdefault('app', ...)`` shim at the top of app.py,
+    running ``python app.py`` ends up serving an empty app and every URL
+    404s. Hitting ``/student_login`` here proves the alias is still in
+    place — it lives in routes/student.py, so a 404 means the alias broke.
+    """
+    resp = client.get("/student_login")
+    assert resp.status_code == 200, (
+        "GET /student_login 404'd — likely the sys.modules['app'] alias at "
+        "the top of app.py is missing. routes/*.py would then register on a "
+        "duplicate Flask instance that the server never sees."
+    )

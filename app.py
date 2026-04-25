@@ -4,12 +4,22 @@ import logging
 import os
 import random
 import secrets
+import sys
 import uuid
 from datetime import date, datetime, timedelta
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# When run directly (`python app.py`), this module is loaded as ``__main__``.
+# routes/*.py do ``from app import app`` — without this alias Python would
+# import a SECOND copy of this file as module ``app``, registering every
+# @app.route on a duplicate Flask instance that ``app.run()`` never serves
+# (you'd get 404 on every URL despite the routes being "defined"). Pinning
+# the alias here makes ``from app import app`` resolve to this same module
+# whether we're __main__ or imported. No-op when already imported as ``app``.
+sys.modules.setdefault("app", sys.modules[__name__])
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_bcrypt import Bcrypt
