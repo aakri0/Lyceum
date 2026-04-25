@@ -162,43 +162,110 @@ A high-level ERD diagram is available in [`other/ERP.svg`](other/ERP.svg).
 
 ## Prerequisites
 
-- **Python 3.9+**
+- **Python 3.11+** (3.12 recommended)
 - **MySQL 8.0+** running locally or reachable over the network
 - **A Gmail account with an App Password** (for OTP + password reset emails)
   - See Google's [App Passwords docs](https://support.google.com/accounts/answer/185833)
+- *Optional but recommended:* **Redis** for production rate-limiting (any
+  build ≥ 6.0). Skip if you'll run a single worker locally.
+
+> **macOS users:** AirPlay Receiver binds port 5000 by default, which
+> collides with Flask's default. Either set `FLASK_PORT=5001` in `.env`
+> (recommended) or disable AirPlay Receiver under
+> *System Settings → General → AirDrop & Handoff*.
 
 ---
 
 ## Quick Start
 
+Pick one path. **Path A** runs everything natively — fastest if Python
+and MySQL are already on your machine. **Path B** runs the whole stack
+(app + MySQL + Redis) under Docker — fewer moving parts, slower first
+boot.
+
+### Path A — native (Python + local MySQL)
+
 ```bash
-# 1. Clone the repository
+# 1. Clone
 git clone https://github.com/aakri0/student-erp-management-system.git
 cd student-erp-management-system
 
-# 2. Create and activate a virtual environment
+# 2. Virtual environment
 python3 -m venv venv
 source venv/bin/activate           # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# 3. Install Python deps
 pip install -r requirements.txt
 
 # 4. Configure environment
 cp .env.example .env
-# Edit .env with your DB credentials, SMTP credentials, and a secure SECRET_KEY
+# Open .env and set: FLASK_SECRET_KEY (run `openssl rand -hex 32`),
+# DB_PASSWORD, EMAIL_ADDRESS, EMAIL_PASSWORD. macOS users: FLASK_PORT=5001.
 
-# 5. Initialize the database
+# 5. Initialize the database — schema, optional seed, then migrations
 mysql -u root -p < sql/schema.sql
-mysql -u root -p ERP < sql/seed.sql   # optional: loads sample data
+mysql -u root -p ERP < sql/seed.sql                          # optional
+for f in sql/migrations/*.sql; do mysql -u root -p ERP < "$f"; done
 
-# 6. Hash any plaintext seed passwords (if you loaded seed.sql)
+# 6. Hash any plaintext seed passwords (only if you loaded seed.sql)
 python hash_passwords.py
 
-# 7. Run the app
+# 7. Run
 python app.py
 ```
 
-The app will be available at **http://localhost:5000**.
+The app will be available at **http://localhost:5001** (or whatever
+`FLASK_PORT` you set).
+
+### Path B — Docker (app + MySQL + Redis)
+
+The repo ships a `Dockerfile` and `docker-compose.yml` that bring up
+the app under Gunicorn (4 workers), MySQL 8.4, and Redis. Schema and
+migrations are auto-loaded into MySQL on first boot via the
+`docker-entrypoint-initdb.d/` mount.
+
+```bash
+git clone https://github.com/aakri0/student-erp-management-system.git
+cd student-erp-management-system
+cp .env.example .env
+# Set FLASK_SECRET_KEY, DB_PASSWORD, EMAIL_ADDRESS, EMAIL_PASSWORD.
+
+docker compose up --build
+```
+
+The app is on **http://localhost:8000** (Gunicorn binds 8000 inside the
+container; compose maps it to host 8000). MySQL data persists in the
+named volume `db_data`.
+
+#### Using Colima instead of Docker Desktop
+
+[Colima](https://github.com/abiosoft/colima) is the lightweight macOS
+alternative to Docker Desktop. It provides the same `docker` and
+`docker compose` CLIs, so the commands above work unchanged — you just
+need a running Colima VM.
+
+```bash
+brew install colima docker docker-compose
+colima start --cpu 2 --memory 4 --disk 20    # one-time; ~30s
+
+# verify the docker context points at colima
+docker context use colima
+docker info | head -5
+
+# now the standard flow works
+docker compose up --build
+```
+
+If the first `docker compose up` fails with *"Cannot connect to the
+Docker daemon"*, your CLI is talking to a stopped Docker Desktop —
+switch contexts:
+
+```bash
+docker context use colima
+```
+
+To stop the VM later: `colima stop`. To wipe and start over:
+`colima delete && colima start`.
 
 ---
 
