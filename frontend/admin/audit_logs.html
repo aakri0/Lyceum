@@ -4,11 +4,13 @@
 <h2>Audit Logs</h2>
 
 <table>
-<tr><th>User</th><th>Action</th><th>Time</th></tr>
+<tr><th>User</th><th>Action</th><th>IP</th><th>User-Agent</th><th>Time</th></tr>
 {% for log in logs %}
 <tr>
   <td>{{ log.email }}</td>
   <td>{{ log.action }}</td>
+  <td>{{ log.ip_address or '' }}</td>
+  <td title="{{ log.user_agent or '' }}">{{ (log.user_agent or '')[:40] }}</td>
   <td>{{ log.created_at }}</td>
 </tr>
 {% endfor %}

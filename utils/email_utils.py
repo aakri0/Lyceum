@@ -1,9 +1,14 @@
+import logging
 import os
 import smtplib
+import threading
 from email.mime.text import MIMEText
+
+logger = logging.getLogger(__name__)
 
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_TIMEOUT = int(os.environ.get("SMTP_TIMEOUT", "15"))
 
 
 def _get_credentials():
@@ -16,17 +21,37 @@ def _get_credentials():
         ) from None
 
 
-def _send(to_email, subject, body):
+def _send_sync(to_email, subject, body):
     sender, password = _get_credentials()
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = to_email
 
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT) as server:
         server.starttls()
         server.login(sender, password)
         server.send_message(msg)
+
+
+def _send(to_email, subject, body):
+    """Fire-and-forget email send.
+
+    Runs the SMTP transaction on a daemon thread so a slow upstream (Gmail
+    occasionally takes 5–15s) does not block the request worker. Set
+    EMAIL_SEND_SYNC=1 in tests to send synchronously and surface errors.
+    """
+    if os.environ.get("EMAIL_SEND_SYNC") == "1":
+        _send_sync(to_email, subject, body)
+        return
+
+    def _worker():
+        try:
+            _send_sync(to_email, subject, body)
+        except Exception:
+            logger.exception("Failed to send email to %s (subject=%r)", to_email, subject)
+
+    threading.Thread(target=_worker, daemon=True, name="smtp-send").start()
 
 
 def send_otp_email(to_email, otp):

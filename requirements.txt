@@ -1,13 +1,22 @@
 Flask>=3.0,<4.0
 Flask-Bcrypt>=1.0.1
 Flask-WTF>=1.2.1
+email-validator>=2.1.0
 Flask-Limiter>=3.5.0
+flask-talisman>=1.1.0
 mysql-connector-python>=8.4.0
 python-dotenv>=1.0.1
+
+# Production rate-limit/cache backend (set RATELIMIT_STORAGE_URI to use)
+redis>=5.0.0
 
 # Optional: analytics sandbox (test/test.py)
 matplotlib>=3.8.0
 numpy>=1.26.0
 
-# Optional: production WSGI server
+# Production WSGI server
 gunicorn>=21.2.0
+
+# Tests
+pytest>=8.0
+pytest-flask>=1.3.0
