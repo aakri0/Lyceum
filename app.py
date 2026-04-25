@@ -33,10 +33,33 @@ from db import close_tracked_connections, get_connection
 from forms import ForgotPasswordForm, LoginForm, OTPForm, ResetPasswordForm
 from utils.email_utils import send_otp_email, send_password_reset_email
 
+class _RequestIdFilter(logging.Filter):
+    """Inject ``request_id`` into every log record.
+
+    Pulled from ``flask.g`` when inside a request, otherwise '-'. This lets
+    a single log line tie back to the request that produced it; pair with
+    the ``X-Request-Id`` response header to follow a user's report through
+    the logs.
+    """
+
+    def filter(self, record):
+        rid = "-"
+        try:
+            from flask import g, has_app_context
+            if has_app_context():
+                rid = getattr(g, "request_id", "-") or "-"
+        except Exception:
+            pass
+        record.request_id = rid
+        return True
+
+
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    format="%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s",
 )
+for _h in logging.getLogger().handlers:
+    _h.addFilter(_RequestIdFilter())
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='frontend')
@@ -90,6 +113,29 @@ limiter = Limiter(
 )
 
 
+@app.before_request
+def _assign_request_id():
+    """Mint or accept a request ID for log correlation.
+
+    Honours an inbound ``X-Request-Id`` header (when behind a proxy or
+    load balancer that adds one) so the same ID flows through every layer.
+    Otherwise generates a fresh UUID4. Stored on ``flask.g`` for the
+    logging filter.
+    """
+    from flask import g
+    incoming = request.headers.get("X-Request-Id", "").strip()
+    g.request_id = incoming[:64] if incoming else uuid.uuid4().hex[:16]
+
+
+@app.after_request
+def _echo_request_id(response):
+    from flask import g
+    rid = getattr(g, "request_id", None)
+    if rid:
+        response.headers.setdefault("X-Request-Id", rid)
+    return response
+
+
 @app.teardown_appcontext
 def _release_db_connections(exc):
     close_tracked_connections()
@@ -118,6 +164,23 @@ def _audit(cur, user_id, action):
         "VALUES (%s, %s, %s, %s)",
         (user_id, action, ip, ua),
     )
+
+
+def _paginate(default_per_page=50, max_per_page=200):
+    """Parse ?page=&per_page= query params into (page, per_page, offset).
+
+    Defaults are sensible for admin list pages; max is capped to keep a
+    rogue ``?per_page=999999`` from melting the DB.
+    """
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = min(max_per_page, max(1, int(request.args.get("per_page", default_per_page))))
+    except (TypeError, ValueError):
+        per_page = default_per_page
+    return page, per_page, (page - 1) * per_page
 
 
 # =============================================================

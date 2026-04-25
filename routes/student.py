@@ -24,7 +24,7 @@ from mysql.connector import Error
 from app import _audit, app, bcrypt, csrf, limiter, logger
 from db import get_connection
 from utils.email_utils import send_otp_email, send_password_reset_email
-from forms import LoginForm
+from forms import LoginForm, NewSWDRequestForm
 
 
 # STUDENT LOGIN + OTP
@@ -221,6 +221,13 @@ def new_request():
         return redirect(url_for('student_login'))
 
     if request.method == 'POST':
+        form = NewSWDRequestForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            return render_template('student/new_request.html')
+
         conn = get_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -228,8 +235,8 @@ def new_request():
             VALUES (%s, %s, %s)
         """, (
             session['student_id'],
-            request.form['category'].strip(),
-            request.form['description'].strip()
+            form.category.data,
+            form.description.data,
         ))
         conn.commit()
         conn.close()

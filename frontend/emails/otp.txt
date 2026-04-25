@@ -1,0 +1,10 @@
+Hi,
+
+Your ERP login code is:
+
+    {{ otp }}
+
+It is valid for 5 minutes. If you did not try to log in, ignore this email
+and consider changing your password.
+
+— ERP
