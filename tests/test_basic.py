@@ -58,6 +58,55 @@ def test_404_path(client):
     assert resp.status_code == 404
 
 
+def test_request_id_header_echoed(client):
+    """Every response should carry an X-Request-Id (minted or echoed)."""
+    resp = client.get("/")
+    assert resp.headers.get("X-Request-Id"), "X-Request-Id missing on response"
+
+    resp2 = client.get("/", headers={"X-Request-Id": "rid-test-12345"})
+    assert resp2.headers.get("X-Request-Id") == "rid-test-12345", (
+        "Inbound X-Request-Id should be echoed verbatim"
+    )
+
+
+def test_password_complexity_rejects_common_password():
+    """ResetPasswordForm should refuse top-list passwords even when long."""
+    from werkzeug.datastructures import MultiDict
+    from forms import ResetPasswordForm
+
+    form = ResetPasswordForm(MultiDict({
+        "password": "password123",
+        "confirm": "password123",
+    }))
+    assert not form.validate()
+    assert any(
+        "common" in err.lower() or "breached" in err.lower()
+        for err in form.password.errors
+    )
+
+
+def test_password_complexity_rejects_pure_letters():
+    from werkzeug.datastructures import MultiDict
+    from forms import ResetPasswordForm
+
+    form = ResetPasswordForm(MultiDict({
+        "password": "onlyletters",
+        "confirm": "onlyletters",
+    }))
+    assert not form.validate()
+
+
+def test_password_complexity_accepts_mixed_strong_password():
+    from werkzeug.datastructures import MultiDict
+    from forms import ResetPasswordForm
+
+    form = ResetPasswordForm(MultiDict({
+        "password": "MyStrong!Pass9",
+        "confirm": "MyStrong!Pass9",
+    }))
+    assert form.validate(), form.errors
+
+
 def test_routes_registered_on_main_module(client):
     """Regression: routes/*.py must register on the same Flask instance
     that ``app.run()`` serves. If someone removes the

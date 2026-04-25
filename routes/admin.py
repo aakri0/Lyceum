@@ -24,10 +24,20 @@ from flask import (
 )
 from mysql.connector import Error
 
-from app import _audit, app, bcrypt, csrf, limiter, logger
+from app import _audit, _paginate, app, bcrypt, csrf, limiter, logger
 from db import get_connection
 from utils.email_utils import send_otp_email, send_password_reset_email
-from forms import LoginForm
+from forms import (
+    BulkPromoteForm,
+    CreateUserForm,
+    DepartmentForm,
+    EditFacultyForm,
+    EditStudentForm,
+    ForwardRequestForm,
+    LoginForm,
+    ResolveRequestForm,
+    UpdateSemesterForm,
+)
 
 
 # =============================================================
@@ -161,19 +171,33 @@ def admin_audit_logs():
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
+    page, per_page, offset = _paginate(default_per_page=100)
+
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
+
+    cur.execute("SELECT COUNT(*) AS c FROM audit_logs")
+    total = cur.fetchone()["c"]
 
     cur.execute("""
         SELECT a.action, a.created_at, a.ip_address, a.user_agent, u.email
         FROM audit_logs a
         JOIN users u ON a.user_id=u.user_id
         ORDER BY a.created_at DESC
-    """)
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     logs = cur.fetchall()
     conn.close()
 
-    return render_template('admin/audit_logs.html', logs=logs)
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total,
+    }
+    return render_template('admin/audit_logs.html', logs=logs, pagination=pagination)
 
 @app.route('/admin_export_csv')
 def admin_export_csv():
@@ -235,9 +259,15 @@ def admin_create_user():
         return redirect(url_for('admin_login'))
 
     if request.method == 'POST':
-        name = request.form['name'].strip()
-        email = request.form['email'].strip()
-        role = request.form['role']
+        form = CreateUserForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            return render_template('admin/create_user.html')
+        name = form.name.data.strip()
+        email = form.email.data.strip()
+        role = form.role.data
 
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -263,27 +293,24 @@ def admin_create_user():
 
             # 2️⃣ Insert role-specific data
             if role == 'student':
-                # Minimal required student fields
                 cur.execute("""
                     INSERT INTO students (user_id, roll_no, dept_id, year_of_study, current_semester)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (
                     user_id,
-                    request.form['roll_no'],
-                    request.form['dept_id'],
-                    request.form['year_of_study'],
-                    request.form['current_semester']
+                    form.roll_no.data,
+                    form.dept_id.data,
+                    form.year_of_study.data,
+                    form.current_semester.data,
                 ))
 
             elif role == 'faculty':
                 cur.execute("""
                     INSERT INTO faculty (user_id, dept_id)
                     VALUES (%s, %s)
-                """, (
-                    user_id,
-                    request.form['dept_id']
-                ))
+                """, (user_id, form.dept_id.data))
 
+            _audit(cur, session['user_id'], f"Created {role} user_id={user_id} ({email})")
             conn.commit()
             flash(
                 f"User created successfully. Temporary password: {temp_password} "
@@ -342,11 +369,11 @@ def admin_resolve_request(req_id):
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
-    action = request.form.get('action')  # 'approved', 'rejected', or 'pending'
-    
-    if action not in ['approved', 'rejected', 'pending']:
+    form = ResolveRequestForm(request.form)
+    if not form.validate():
         flash("Invalid action", "danger")
         return redirect(url_for('admin_requests'))
+    action = form.action.data
 
     conn = get_connection()
     cur = conn.cursor()
@@ -364,7 +391,8 @@ def admin_resolve_request(req_id):
             SET status = %s
             WHERE req_id = %s
         """, (action, req_id))
-    
+
+    _audit(cur, session['user_id'], f"Set request {req_id} status={action}")
     conn.commit()
     conn.close()
 
@@ -376,11 +404,11 @@ def admin_forward_request(req_id):
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
-    faculty_id = request.form.get('faculty_id')
-    
-    if not faculty_id:
+    form = ForwardRequestForm(request.form)
+    if not form.validate():
         flash("Please select a faculty member", "danger")
         return redirect(url_for('admin_requests'))
+    faculty_id = form.faculty_id.data
 
     conn = get_connection()
     cur = conn.cursor()
@@ -389,6 +417,7 @@ def admin_forward_request(req_id):
         SET assigned_faculty_id = %s
         WHERE req_id = %s
     """, (faculty_id, req_id))
+    _audit(cur, session['user_id'], f"Forwarded request {req_id} to faculty_id={faculty_id}")
     conn.commit()
     conn.close()
 
@@ -405,10 +434,16 @@ def admin_manage_students():
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
+    page, per_page, offset = _paginate(default_per_page=50)
+
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
 
-    # Fetch all students with details
+    cur.execute("SELECT COUNT(*) AS c FROM students")
+    total = cur.fetchone()["c"]
+
+    # Page through students directly. Grouping in the template still works
+    # over the page-sized slice.
     cur.execute("""
         SELECT s.student_id, s.roll_no, s.year_of_study, s.current_semester, s.dept_id,
                u.name, u.email, d.dept_name
@@ -416,45 +451,56 @@ def admin_manage_students():
         JOIN users u ON s.user_id = u.user_id
         JOIN departments d ON s.dept_id = d.dept_id
         ORDER BY d.dept_name, s.year_of_study, s.roll_no
-    """)
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     students = cur.fetchall()
     conn.close()
 
-    # Structure data: { 'Dept A': { 1: [students], 2: [students] } }
-    structured_data = {}
+    # Structure for the template: { 'Dept A': { 1: [students], 2: [...] } }
+    structured_data: dict = {}
     for student in students:
         dept = student['dept_name']
         year = student['year_of_study']
-        
-        if dept not in structured_data:
-            structured_data[dept] = {}
-        
-        if year not in structured_data[dept]:
-            structured_data[dept][year] = []
-            
-        structured_data[dept][year].append(student)
+        structured_data.setdefault(dept, {}).setdefault(year, []).append(student)
 
-    return render_template('admin/manage_students.html', structured_data=structured_data)
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total,
+    }
+    return render_template(
+        'admin/manage_students.html',
+        structured_data=structured_data,
+        pagination=pagination,
+    )
 
 @app.route('/admin_update_semester/<int:student_id>', methods=['POST'])
 def admin_update_semester(student_id):
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
     
-    new_semester = request.form.get('semester')
-    
+    form = UpdateSemesterForm(request.form)
+    if not form.validate():
+        flash("Invalid semester value.", "danger")
+        return redirect(url_for('admin_manage_students'))
+    new_semester = form.semester.data
+
     conn = get_connection()
     cur = conn.cursor()
-    
+
     cur.execute("""
         UPDATE students
         SET current_semester = %s
         WHERE student_id = %s
     """, (new_semester, student_id))
-    
+
+    _audit(cur, session['user_id'], f"Updated student_id={student_id} semester={new_semester}")
     conn.commit()
     conn.close()
-    
+
     flash(f"Student updated to Semester {new_semester}", "success")
     return redirect(url_for('admin_manage_students'))
 
@@ -463,12 +509,14 @@ def admin_bulk_promote():
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
-    from_sem = request.form.get('from_semester')
-    to_sem = request.form.get('to_semester')
-
-    if not from_sem or not to_sem:
-        flash("Please select both semesters.", "danger")
+    form = BulkPromoteForm(request.form)
+    if not form.validate():
+        for field, errors in form.errors.items():
+            for err in errors:
+                flash(f"{field}: {err}", "danger")
         return redirect(url_for('admin_manage_students'))
+    from_sem = form.from_semester.data
+    to_sem = form.to_semester.data
 
     conn = get_connection()
     cur = conn.cursor()
@@ -478,8 +526,13 @@ def admin_bulk_promote():
         SET current_semester = %s
         WHERE current_semester = %s
     """, (to_sem, from_sem))
-    
+
     rows_affected = cur.rowcount
+    _audit(
+        cur,
+        session['user_id'],
+        f"Bulk-promoted {rows_affected} students from sem {from_sem} -> sem {to_sem}",
+    )
     conn.commit()
     conn.close()
 
@@ -506,6 +559,7 @@ def admin_delete_student(student_id):
     if student:
         user_id = student['user_id']
         cur.execute("DELETE FROM users WHERE user_id=%s", (user_id,))
+        _audit(cur, session['user_id'], f"Deleted student_id={student_id} user_id={user_id}")
         conn.commit()
         flash("Student deleted successfully", "success")
     else:
@@ -523,29 +577,37 @@ def admin_edit_student(student_id):
     cur = conn.cursor(dictionary=True)
     
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        roll_no = request.form['roll_no']
-        year = request.form['year_of_study']
-        current_sem = request.form['current_semester']
-        dept_id = request.form['dept_id']
-        
+        form = EditStudentForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            conn.close()
+            return redirect(url_for('admin_edit_student', student_id=student_id))
+        name = form.name.data.strip()
+        email = form.email.data.strip()
+        roll_no = form.roll_no.data
+        year = form.year_of_study.data
+        current_sem = form.current_semester.data
+        dept_id = form.dept_id.data
+
         # Get user_id
         cur.execute("SELECT user_id FROM students WHERE student_id=%s", (student_id,))
         res = cur.fetchone()
         if res:
             user_id = res['user_id']
-            
+
             # Update Users table
             cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s", (name, email, user_id))
-            
+
             # Update Students table
             cur.execute("""
-                UPDATE students 
-                SET roll_no=%s, year_of_study=%s, current_semester=%s, dept_id=%s 
+                UPDATE students
+                SET roll_no=%s, year_of_study=%s, current_semester=%s, dept_id=%s
                 WHERE student_id=%s
             """, (roll_no, year, current_sem, dept_id, student_id))
-            
+
+            _audit(cur, session['user_id'], f"Edited student_id={student_id} ({email})")
             conn.commit()
             flash("Student updated successfully", "success")
             conn.close()
@@ -582,8 +644,13 @@ def admin_manage_faculty():
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
 
+    page, per_page, offset = _paginate(default_per_page=50)
+
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
+
+    cur.execute("SELECT COUNT(*) AS c FROM faculty")
+    total = cur.fetchone()["c"]
 
     cur.execute("""
         SELECT f.faculty_id, f.dept_id,
@@ -592,7 +659,8 @@ def admin_manage_faculty():
         JOIN users u ON f.user_id = u.user_id
         JOIN departments d ON f.dept_id = d.dept_id
         ORDER BY d.dept_name, u.name
-    """)
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     faculty_list = cur.fetchall()
     conn.close()
 
@@ -604,7 +672,19 @@ def admin_manage_faculty():
             structured_data[dept] = []
         structured_data[dept].append(f)
 
-    return render_template('admin/manage_faculty.html', structured_data=structured_data)
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total,
+    }
+    return render_template(
+        'admin/manage_faculty.html',
+        structured_data=structured_data,
+        pagination=pagination,
+    )
 
 @app.route('/admin_delete_faculty/<int:faculty_id>', methods=['POST'])
 def admin_delete_faculty(faculty_id):
@@ -620,11 +700,12 @@ def admin_delete_faculty(faculty_id):
     if faculty:
         user_id = faculty['user_id']
         cur.execute("DELETE FROM users WHERE user_id=%s", (user_id,))
+        _audit(cur, session['user_id'], f"Deleted faculty_id={faculty_id} user_id={user_id}")
         conn.commit()
         flash("Faculty deleted successfully", "success")
     else:
         flash("Faculty not found", "danger")
-        
+
     conn.close()
     return redirect(url_for('admin_manage_faculty'))
 
@@ -637,16 +718,24 @@ def admin_edit_faculty(faculty_id):
     cur = conn.cursor(dictionary=True)
     
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        dept_id = request.form['dept_id']
-        
+        form = EditFacultyForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            conn.close()
+            return redirect(url_for('admin_edit_faculty', faculty_id=faculty_id))
+        name = form.name.data.strip()
+        email = form.email.data.strip()
+        dept_id = form.dept_id.data
+
         cur.execute("SELECT user_id FROM faculty WHERE faculty_id=%s", (faculty_id,))
         res = cur.fetchone()
         if res:
             user_id = res['user_id']
             cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s", (name, email, user_id))
             cur.execute("UPDATE faculty SET dept_id=%s WHERE faculty_id=%s", (dept_id, faculty_id))
+            _audit(cur, session['user_id'], f"Edited faculty_id={faculty_id} ({email}) dept_id={dept_id}")
             conn.commit()
             flash("Faculty updated successfully", "success")
             conn.close()
@@ -695,12 +784,20 @@ def admin_add_department():
     if session.get('role') != 'admin':
         return redirect(url_for('admin_login'))
         
-    dept_name = request.form['dept_name']
-    
+    form = DepartmentForm(request.form)
+    if not form.validate():
+        for field, errors in form.errors.items():
+            for err in errors:
+                flash(f"{field}: {err}", "danger")
+        return redirect(url_for('admin_manage_departments'))
+    dept_name = form.dept_name.data.strip()
+
     conn = get_connection()
     cur = conn.cursor()
     try:
         cur.execute("INSERT INTO departments (dept_name) VALUES (%s)", (dept_name,))
+        new_dept_id = cur.lastrowid
+        _audit(cur, session['user_id'], f"Created department_id={new_dept_id} ({dept_name})")
         conn.commit()
         flash("Department added successfully", "success")
     except Exception:
@@ -720,8 +817,16 @@ def admin_edit_department(dept_id):
     cur = conn.cursor(dictionary=True)
     
     if request.method == 'POST':
-        dept_name = request.form['dept_name']
+        form = DepartmentForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            conn.close()
+            return redirect(url_for('admin_edit_department', dept_id=dept_id))
+        dept_name = form.dept_name.data.strip()
         cur.execute("UPDATE departments SET dept_name=%s WHERE dept_id=%s", (dept_name, dept_id))
+        _audit(cur, session['user_id'], f"Edited department_id={dept_id} name={dept_name!r}")
         conn.commit()
         conn.close()
         flash("Department updated successfully", "success")
@@ -746,10 +851,12 @@ def admin_delete_department(dept_id):
     cur = conn.cursor()
     try:
         cur.execute("DELETE FROM departments WHERE dept_id=%s", (dept_id,))
+        _audit(cur, session['user_id'], f"Deleted department_id={dept_id}")
         conn.commit()
         flash("Department deleted successfully", "success")
-    except Exception as e:
+    except Exception:
         # Constraint error likely if students/faculty exist
+        logger.exception("Failed to delete department %s", dept_id)
         flash("Cannot delete department. It may be linked to existing students or faculty.", "danger")
     finally:
         conn.close()

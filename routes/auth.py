@@ -151,6 +151,7 @@ def force_reset_password():
             SET password=%s, force_reset=0
             WHERE user_id=%s
         """, (hashed, session['user_id']))
+        _audit(cur, session['user_id'], "Password changed via forced first-login reset")
         conn.commit()
         conn.close()
 
@@ -224,6 +225,7 @@ def reset_password(token):
             UPDATE users SET password=%s WHERE user_id=%s
         """, (hashed, record['user_id']))
         cur.execute("DELETE FROM password_resets WHERE user_id=%s", (record['user_id'],))
+        _audit(cur, record['user_id'], "Password reset via emailed reset-link")
         conn.commit()
         conn.close()
 

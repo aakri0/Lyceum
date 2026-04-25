@@ -24,7 +24,13 @@ from mysql.connector import Error
 from app import _audit, app, bcrypt, csrf, limiter, logger
 from db import get_connection
 from utils.email_utils import send_otp_email, send_password_reset_email
-from forms import LoginForm
+from forms import (
+    CourseForm,
+    EnrollForm,
+    GradeComponentForm,
+    GradeForm,
+    LoginForm,
+)
 
 
 # =============================================================
@@ -163,8 +169,14 @@ def faculty_add_course():
         return redirect(url_for('faculty_login'))
 
     if request.method == 'POST':
-        name = request.form['course_name']
-        credits = request.form['credits']
+        form = CourseForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            return render_template('faculty/add_course.html')
+        name = form.course_name.data.strip()
+        credits = form.credits.data
         dept_id = session['dept_id']
 
         conn = get_connection()
@@ -173,6 +185,12 @@ def faculty_add_course():
             INSERT INTO courses (course_name, dept_id, credits)
             VALUES (%s, %s, %s)
         """, (name, dept_id, credits))
+        new_course_id = cur.lastrowid
+        _audit(
+            cur,
+            session['user_id'],
+            f"Created course_id={new_course_id} ({name!r}) credits={credits} dept_id={dept_id}",
+        )
         conn.commit()
         conn.close()
 
@@ -195,15 +213,27 @@ def faculty_enroll():
     students = cur.fetchall()
 
     if request.method == 'POST':
+        form = EnrollForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            conn.close()
+            return render_template(
+                'faculty/enroll_student.html',
+                courses=courses,
+                students=students,
+            )
         try:
             cur.execute("""
                 INSERT INTO enrollments (student_id, course_id, semester)
                 VALUES (%s, %s, %s)
-            """, (
-                request.form['student_id'],
-                request.form['course_id'],
-                request.form['semester']
-            ))
+            """, (form.student_id.data, form.course_id.data, form.semester.data))
+            _audit(
+                cur,
+                session['user_id'],
+                f"Enrolled student_id={form.student_id.data} into course_id={form.course_id.data} sem={form.semester.data}",
+            )
             conn.commit()
             flash("Student enrolled", "success")
         except Error as e:
@@ -230,14 +260,26 @@ def faculty_edit_course(course_id):
 
 
     if request.method == 'POST':
-        course_name = request.form['course_name']
-        credits = request.form['credits']
+        form = CourseForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+            conn.close()
+            return redirect(url_for('faculty_edit_course', course_id=course_id))
+        course_name = form.course_name.data.strip()
+        credits = form.credits.data
 
         cur.execute("""
             UPDATE courses
             SET course_name=%s, credits=%s
             WHERE course_id=%s AND dept_id=%s
         """, (course_name, credits, course_id, session['dept_id']))
+        _audit(
+            cur,
+            session['user_id'],
+            f"Edited course_id={course_id} name={course_name!r} credits={credits}",
+        )
         conn.commit()
         conn.close()
         
@@ -278,6 +320,7 @@ def faculty_delete_course(course_id):
 
     # Delete course
     cur.execute("DELETE FROM courses WHERE course_id=%s AND dept_id=%s", (course_id, session['dept_id']))
+    _audit(cur, session['user_id'], f"Deleted course_id={course_id}")
     conn.commit()
     conn.close()
 
@@ -438,15 +481,25 @@ def faculty_grades(enrollment_id):
     cur = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
-        component = request.form['component']
-        marks = request.form['marks']
-
-        cur.execute("""
-            INSERT INTO grade_components (enrollment_id, component_name, marks)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE marks=%s
-        """, (enrollment_id, component, marks, marks))
-        conn.commit()
+        form = GradeComponentForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+        else:
+            component = form.component.data.strip()
+            marks = form.marks.data
+            cur.execute("""
+                INSERT INTO grade_components (enrollment_id, component_name, marks)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE marks=%s
+            """, (enrollment_id, component, marks, marks))
+            _audit(
+                cur,
+                session['user_id'],
+                f"Set grade component {component!r}={marks} for enrollment_id={enrollment_id}",
+            )
+            conn.commit()
 
     cur.execute("""
         SELECT component_name, marks
@@ -489,18 +542,27 @@ def faculty_course_students(course_id):
 
     # Handle grade update
     if request.method == 'POST':
-        enrollment_id = request.form['enrollment_id']
-        grade = request.form['grade']
+        form = GradeForm(request.form)
+        if not form.validate():
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", "danger")
+        else:
+            enrollment_id = form.enrollment_id.data
+            grade = form.grade.data
 
-        cur.execute("""
-            UPDATE enrollments
-            SET grade=%s
-            WHERE enrollment_id=%s
-        """, (grade, enrollment_id))
+            cur.execute("""
+                UPDATE enrollments
+                SET grade=%s
+                WHERE enrollment_id=%s
+            """, (grade, enrollment_id))
 
-        _audit(cur, session['user_id'], f"Updated grade for enrollment {enrollment_id}")
-
-        conn.commit()
+            _audit(
+                cur,
+                session['user_id'],
+                f"Updated grade for enrollment {enrollment_id} -> {grade}",
+            )
+            conn.commit()
 
     # Get course info
     cur.execute("""

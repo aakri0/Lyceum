@@ -1,0 +1,24 @@
+{# Pagination controls. Pass a ``pagination`` dict from the view:
+   { page, per_page, total, pages, has_prev, has_next }.
+   Renders nothing when there's nothing to page through. #}
+{% if pagination and pagination.pages > 1 %}
+<nav class="pagination" aria-label="Pagination">
+  <span class="pagination-summary">
+    Page {{ pagination.page }} of {{ pagination.pages }}
+    &middot; {{ pagination.total }} total
+  </span>
+  <span class="pagination-links">
+    {% if pagination.has_prev %}
+      <a href="?page={{ pagination.page - 1 }}&per_page={{ pagination.per_page }}">&larr; Previous</a>
+    {% else %}
+      <span class="disabled">&larr; Previous</span>
+    {% endif %}
+    &nbsp;|&nbsp;
+    {% if pagination.has_next %}
+      <a href="?page={{ pagination.page + 1 }}&per_page={{ pagination.per_page }}">Next &rarr;</a>
+    {% else %}
+      <span class="disabled">Next &rarr;</span>
+    {% endif %}
+  </span>
+</nav>
+{% endif %}
