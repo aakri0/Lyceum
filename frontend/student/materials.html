@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-4">
+    <h2 style="margin-bottom:0;">Course Materials</h2>
+    <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  {% if not by_course %}
+  <div class="alert alert-info">No course materials uploaded yet.</div>
+  {% else %}
+  {% for course_name, items in by_course.items() %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">{{ course_name }}</h5>
+      <ul class="list-unstyled" style="margin:0;">
+        {% for m in items %}
+        <li style="padding:0.5rem 0;border-bottom:1px solid #e2e8f0;">
+          📄 <a href="{{ url_for('download_material', material_id=m.material_id) }}">{{ m.title }}</a>
+          <small class="text-muted">·
+            {{ m.file_name }} ·
+            {{ (m.size_bytes / 1024) | round(1) }} KB ·
+            {{ m.uploaded_at }} · by {{ m.uploader }}
+          </small>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

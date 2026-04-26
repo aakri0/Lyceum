@@ -7,8 +7,30 @@
             style="width: auto; padding: 0.5rem 1rem;">Back to Dashboard</a>
     </div>
 
+    {# Search + filters (A2) #}
+    <form method="GET" class="d-flex gap-2 mb-3" style="flex-wrap:wrap;align-items:end;">
+      <div style="flex:2;min-width:220px;">
+        <label class="text-muted small mb-1">Search (name / email)</label>
+        <input type="text" name="q" value="{{ q or '' }}" class="form-control">
+      </div>
+      <div style="flex:1;min-width:160px;">
+        <label class="text-muted small mb-1">Department</label>
+        <select name="dept_id" class="form-control">
+          <option value="">All departments</option>
+          {% for d in departments %}
+          <option value="{{ d.dept_id }}" {% if dept_id_filter == d.dept_id %}selected{% endif %}>
+            {{ d.dept_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="height:38px;width:auto;padding:0 1rem;">Filter</button>
+      <a href="{{ url_for('admin_manage_faculty') }}" class="btn btn-secondary"
+         style="height:38px;width:auto;padding:0 1rem;line-height:38px;">Clear</a>
+    </form>
+
     {% if not structured_data %}
-    <div class="alert alert-info">No faculty members found in the database.</div>
+    <div class="alert alert-info">No faculty members found.</div>
     {% else %}
     {% for dept_name, faculty_list in structured_data.items() %}
     <div class="card mb-4 shadow-sm">

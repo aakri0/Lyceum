@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-4">
+    <h2 style="margin-bottom:0;">Notifications</h2>
+    <a href="javascript:history.back()" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  {% if not items %}
+  <div class="alert alert-info">No notifications yet.</div>
+  {% else %}
+  <ul class="list-unstyled">
+    {% for n in items %}
+    <li class="card mb-2"
+        style="border-left:4px solid {{ '#94a3b8' if n.read_at else '#2563eb' }};">
+      <div class="card-body" style="padding:0.8rem 1rem;">
+        <div class="d-flex justify-between align-items-start">
+          <div>
+            <small class="text-muted">{{ n.kind }} · {{ n.created_at }}</small>
+            <p style="margin:0.3rem 0;">{{ n.message }}</p>
+            {% if n.link %}
+            <a href="{{ n.link }}" style="font-size:0.9rem;">Open &rarr;</a>
+            {% endif %}
+          </div>
+          {% if not n.read_at %}
+          <span class="badge" style="background:#2563eb;color:white;">new</span>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

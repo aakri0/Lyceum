@@ -11,6 +11,34 @@
         </div>
 
         {% if student %}
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+          {% if student.profile_photo %}
+          <img src="{{ url_for('profile_photo', filename=student.profile_photo) }}"
+               alt="avatar"
+               style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">
+          {% else %}
+          <div style="width:80px;height:80px;border-radius:50%;background:#cbd5e1;
+                      display:flex;align-items:center;justify-content:center;font-size:2rem;color:#475569;">
+            {{ student.name[0] | upper }}
+          </div>
+          {% endif %}
+          <form method="POST" action="{{ url_for('profile_photo_upload') }}"
+                enctype="multipart/form-data" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label style="display:block;font-size:0.85rem;color:var(--text-muted);margin-bottom:0.3rem;">
+              Update photo (PNG/JPG/GIF/WebP, max 2 MB)
+            </label>
+            <input type="file" name="avatar" accept="image/*" required style="font-size:0.85rem;">
+            <button type="submit" class="btn btn-primary"
+                    style="width:auto;padding:0.3rem 0.8rem;font-size:0.85rem;margin-top:0.3rem;">Upload</button>
+          </form>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <a href="{{ url_for('change_password') }}" class="btn btn-secondary"
+             style="width:auto;padding:0.4rem 1rem;font-size:0.9rem;">Change password</a>
+          <a href="{{ url_for('student_export') }}" class="btn btn-secondary"
+             style="width:auto;padding:0.4rem 1rem;font-size:0.9rem;">Download my data</a>
+        </div>
         <div style="display: grid; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
             <div class="d-flex justify-between" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
                 <span class="text-muted">Name</span>

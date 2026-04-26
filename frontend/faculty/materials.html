@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-3">
+    <h2 style="margin-bottom:0;">Materials · {{ course.course_name }}</h2>
+    <a href="{{ url_for('faculty_courses') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title text-primary mb-3">📎 Upload Material</h5>
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" name="title" maxlength="200" required class="form-control">
+        </div>
+        <div class="form-group">
+          <label>File <small class="text-muted">(max {{ max_mb }} MB; PDF, images, MS Office, txt, csv, zip)</small></label>
+          <input type="file" name="material_file" required class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary mt-2" style="width:auto;padding:0.5rem 1.5rem;">Upload</button>
+      </form>
+    </div>
+  </div>
+
+  {% if materials %}
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th>Title</th>
+          <th>File</th>
+          <th>Size</th>
+          <th>Uploaded</th>
+          <th>By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in materials %}
+        <tr>
+          <td>{{ m.title }}</td>
+          <td><a href="{{ url_for('download_material', material_id=m.material_id) }}">{{ m.file_name }}</a></td>
+          <td>{{ (m.size_bytes / 1024) | round(1) }} KB</td>
+          <td>{{ m.uploaded_at }}</td>
+          <td>{{ m.uploader }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('faculty_material_delete', material_id=m.material_id) }}"
+                  onsubmit="return confirm('Delete this material?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger" style="width:auto;padding:0.25rem 0.8rem;font-size:0.85rem;">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">No materials uploaded yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

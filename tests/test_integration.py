@@ -153,6 +153,59 @@ def test_audit_logs_pagination(_live_mysql, client, seeded_admin, db_conn):
     cur.close()
 
 
+def test_section_table_present(_live_mysql, db_conn):
+    """Phase-4 schema migration must create course_sections + attendance + ..."""
+    cur = db_conn.cursor()
+    cur.execute("SHOW TABLES")
+    tables = {row[0] for row in cur.fetchall()}
+    cur.close()
+    expected = {
+        "course_sections", "attendance", "notifications", "announcements",
+        "course_materials", "bonafide_certificates",
+        "login_attempts", "account_locks", "swd_comments",
+    }
+    missing = expected - tables
+    assert not missing, f"missing migration tables: {missing}"
+
+
+def test_account_lockout_after_threshold(_live_mysql, client, seeded_admin, db_conn):
+    """5 failed admin logins should lock the account; 6th sees the lock notice."""
+    user_id, email, _ = seeded_admin
+
+    # Clean state.
+    cur = db_conn.cursor()
+    cur.execute("DELETE FROM login_attempts WHERE email=%s", (email,))
+    cur.execute("DELETE FROM account_locks WHERE email=%s", (email,))
+    db_conn.commit()
+    cur.close()
+
+    for _i in range(5):
+        resp = client.get("/admin_login")
+        csrf = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', resp.get_data(as_text=True))
+        client.post(
+            "/admin_login",
+            data={"email": email, "password": "wrong", "csrf_token": csrf.group(1)},
+            follow_redirects=False,
+        )
+
+    resp = client.get("/admin_login")
+    csrf = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', resp.get_data(as_text=True))
+    resp = client.post(
+        "/admin_login",
+        data={"email": email, "password": "wrong", "csrf_token": csrf.group(1)},
+        follow_redirects=False,
+    )
+    body = resp.get_data(as_text=True).lower()
+    assert "lock" in body, "should show lockout notice on the 6th attempt"
+
+    # Cleanup.
+    cur = db_conn.cursor()
+    cur.execute("DELETE FROM login_attempts WHERE email=%s", (email,))
+    cur.execute("DELETE FROM account_locks WHERE email=%s", (email,))
+    db_conn.commit()
+    cur.close()
+
+
 def test_admin_login_rejects_bad_password(_live_mysql, client, seeded_admin):
     user_id, email, _ = seeded_admin
 

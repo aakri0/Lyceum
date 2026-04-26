@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-3">
+    <h2 style="margin-bottom:0;">My Attendance</h2>
+    <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  <p class="text-muted">
+    Counted sessions exclude faculty-marked excused absences.
+    A course is flagged if your attendance falls below {{ threshold }}%.
+  </p>
+
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th>Course</th>
+          <th>Section</th>
+          <th>Sem</th>
+          <th>Present</th>
+          <th>Late</th>
+          <th>Absent</th>
+          <th>Excused</th>
+          <th>Total</th>
+          <th>%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr {% if r.below_threshold %}style="background:#fef2f2;"{% endif %}>
+          <td>{{ r.course_name }}</td>
+          <td>{{ r.section_label }}</td>
+          <td>{{ r.semester }}</td>
+          <td>{{ r.present }}</td>
+          <td>{{ r.late }}</td>
+          <td>{{ r.absent }}</td>
+          <td>{{ r.excused }}</td>
+          <td>{{ r.total }}</td>
+          <td>
+            {% if r.pct is none %}
+              <span class="text-muted">—</span>
+            {% else %}
+              <strong style="color: {% if r.below_threshold %}#dc2626{% else %}#16a34a{% endif %};">
+                {{ r.pct }}%
+              </strong>
+              {% if r.below_threshold %}<br><small style="color:#dc2626;">below {{ threshold }}%</small>{% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">No attendance records yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
