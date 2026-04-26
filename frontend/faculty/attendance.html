@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between align-items-center mb-3">
+    <div>
+      <h2 style="margin-bottom:0;">Attendance · {{ section.course_name }}</h2>
+      <small class="text-muted">Section {{ section.section_label }} · Semester {{ section.semester }}</small>
+    </div>
+    <a href="{{ url_for('faculty_courses') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  {# Date picker — back-marking earlier sessions allowed; future blocked. #}
+  <form method="GET" class="d-flex align-items-end gap-2 mb-3">
+    <div>
+      <label class="text-muted small mb-1">Session date</label>
+      <input type="date" name="date" value="{{ session_date }}"
+             class="form-control" style="width:auto;">
+    </div>
+    <button type="submit" class="btn btn-primary"
+            style="height:38px;width:auto;padding:0 1rem;">Load</button>
+  </form>
+
+  {% if not roster %}
+  <div class="alert alert-info">No students enrolled in this section yet.</div>
+  {% else %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ session_date }}">
+
+    <div class="d-flex gap-2 mb-2">
+      <button type="button" class="btn btn-secondary" style="width:auto;padding:0.3rem 0.8rem;"
+              onclick="document.querySelectorAll('input[type=radio][value=P]').forEach(r=>r.checked=true)">
+        Mark all Present
+      </button>
+      <button type="button" class="btn btn-secondary" style="width:auto;padding:0.3rem 0.8rem;"
+              onclick="document.querySelectorAll('input[type=radio][value=A]').forEach(r=>r.checked=true)">
+        Mark all Absent
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+          <tr>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in roster %}
+          {% set current = r.marked_status or 'P' %}
+          <tr>
+            <td>{{ r.roll_no }}</td>
+            <td>{{ r.name }}</td>
+            <td>
+              <label style="margin-right:1rem;">
+                <input type="radio" name="status_{{ r.student_id }}" value="P"
+                       {% if current == 'P' %}checked{% endif %}> Present
+              </label>
+              <label style="margin-right:1rem;">
+                <input type="radio" name="status_{{ r.student_id }}" value="A"
+                       {% if current == 'A' %}checked{% endif %}> Absent
+              </label>
+              <label style="margin-right:1rem;">
+                <input type="radio" name="status_{{ r.student_id }}" value="L"
+                       {% if current == 'L' %}checked{% endif %}> Late
+              </label>
+              <label>
+                <input type="radio" name="status_{{ r.student_id }}" value="X"
+                       {% if current == 'X' %}checked{% endif %}> Excused
+              </label>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;width:auto;padding:0.5rem 1.5rem;">
+      Save attendance
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

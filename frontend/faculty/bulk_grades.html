@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-3">
+    <div>
+      <h2 style="margin-bottom:0;">Bulk Grade Entry · {{ section.course_name }}</h2>
+      <small class="text-muted">Section {{ section.section_label }} · Semester {{ section.semester }}</small>
+    </div>
+    <a href="{{ url_for('faculty_courses') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  {% if not students %}
+  <div class="alert alert-info">No students enrolled in this section yet.</div>
+  {% else %}
+  <p class="text-muted">
+    Enter component marks (0–100) and the final letter grade. Blank cells are
+    left untouched. Saving creates an in-app notification per student whose
+    final grade is set or changed.
+  </p>
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="table-responsive">
+      <table class="table table-bordered" style="font-size:0.92rem;">
+        <thead class="thead-light">
+          <tr>
+            <th>Roll No</th>
+            <th>Name</th>
+            {% for c in components %}<th>{{ c }}</th>{% endfor %}
+            <th>Final Grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+          <tr>
+            <td>{{ s.roll_no }}</td>
+            <td>{{ s.student_name }}</td>
+            {% for c in components %}
+            <td>
+              <input type="number" name="comp_{{ s.enrollment_id }}_{{ c }}"
+                     value="{{ existing.get((s.enrollment_id, c), '') }}"
+                     min="0" max="100" class="form-control"
+                     style="width:80px;padding:0.2rem 0.4rem;">
+            </td>
+            {% endfor %}
+            <td>
+              <select name="grade_{{ s.enrollment_id }}" class="form-control"
+                      style="width:90px;padding:0.2rem;">
+                <option value=""></option>
+                {% for g in valid_grades %}
+                <option value="{{ g }}" {% if s.grade == g %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn btn-primary mt-2"
+            style="width:auto;padding:0.5rem 1.5rem;">Save all</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

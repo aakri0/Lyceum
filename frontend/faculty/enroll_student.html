@@ -7,19 +7,30 @@
       <a href="/faculty_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
     </div>
 
+    {% if not sections %}
+    <div class="alert alert-warning">
+      You don't have any sections allotted to you yet. Ask your admin to
+      assign you a section in <em>Course Allotment</em>.
+    </div>
+    {% else %}
     <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
       <div class="form-group">
-        <label>Select Course</label>
-        <select name="course_id" required>
-          {% for c in courses %}
-          <option value="{{ c.course_id }}">{{ c.course_name }}</option>
+        <label>Section</label>
+        <select name="section_id" required>
+          {% for s in sections %}
+          <option value="{{ s.section_id }}">
+            {{ s.course_name }} · Sec {{ s.section_label }} · Sem {{ s.semester }}
+            {% if s.capacity %}({{ s.enrolled_count }}/{{ s.capacity }}){% else %}({{ s.enrolled_count }} enrolled){% endif %}
+          </option>
           {% endfor %}
         </select>
+        <small class="text-muted">Only sections allotted to you are listed.</small>
       </div>
 
       <div class="form-group">
-        <label>Select Student</label>
+        <label>Student</label>
         <select name="student_id" required>
           {% for s in students %}
           <option value="{{ s.student_id }}">{{ s.roll_no }}</option>
@@ -27,15 +38,11 @@
         </select>
       </div>
 
-      <div class="form-group">
-        <label>Semester</label>
-        <input type="number" name="semester" placeholder="E.g. 5" min="1" max="8" required>
-      </div>
-
       <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
         Enroll Student
       </button>
     </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

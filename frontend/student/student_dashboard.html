@@ -1,6 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="mb-4">Student Dashboard</h2>
+
+{# Announcements (B3) #}
+{% if announcements %}
+<div class="card mb-4" style="border-left:4px solid #2563eb;">
+  <h3 class="card-title" style="margin-bottom:0.5rem;">📣 Announcements</h3>
+  <ul class="list-unstyled" style="margin:0;">
+    {% for a in announcements[:5] %}
+    <li style="padding:0.6rem 0;border-bottom:1px solid #e2e8f0;">
+      {% if a.pinned %}<span title="pinned">📌</span>{% endif %}
+      <strong>{{ a.title }}</strong>
+      <small class="text-muted">· {{ a.poster_name }} · {{ a.created_at }}</small>
+      <p style="margin:0.2rem 0 0 0;color:#475569;">{{ a.body[:200] }}{% if a.body|length > 200 %}…{% endif %}</p>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <div class="dashboard-grid">
   <div class="card">
     <h3 class="card-title">My Profile</h3>

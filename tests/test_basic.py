@@ -107,6 +107,25 @@ def test_password_complexity_accepts_mixed_strong_password():
     assert form.validate(), form.errors
 
 
+def test_phase4_routes_registered(client):
+    """All phase-4 endpoints should be importable + registered."""
+    expected = {
+        "/admin_course_allotment", "/admin_announcements",
+        "/faculty_attendance/<int:section_id>",
+        "/faculty_materials/<int:course_id>",
+        "/faculty_bulk_grades/<int:section_id>",
+        "/student_attendance", "/student_materials", "/student_export",
+        "/notifications", "/change_password",
+        "/request/<int:req_id>",
+        "/profile_photo/<filename>",
+        "/bonafide/<path:serial_no>",
+    }
+    from app import app as flask_app
+    rules = {r.rule for r in flask_app.url_map.iter_rules()}
+    missing = expected - rules
+    assert not missing, f"missing routes: {missing}"
+
+
 def test_routes_registered_on_main_module(client):
     """Regression: routes/*.py must register on the same Flask instance
     that ``app.run()`` serves. If someone removes the

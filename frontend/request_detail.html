@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-3">
+    <h2 style="margin-bottom:0;">{{ req.category }} request #{{ req.req_id }}</h2>
+    <a href="javascript:history.back()" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-between mb-2">
+        <div>
+          <strong>{{ req.student_name }}</strong>
+          <small class="text-muted">· {{ req.roll_no }} · raised {{ req.created_at }}</small>
+        </div>
+        <span class="badge {{ {'pending':'pending','approved':'approved','rejected':'rejected'}[req.status] or 'pending' }}">
+          {{ req.status }}
+        </span>
+      </div>
+      <p style="white-space:pre-wrap;margin:0;">{{ req.description }}</p>
+      {% if req.faculty_name %}
+      <p class="text-muted mt-2" style="margin:0;font-size:0.9rem;">
+        Assigned to: <strong>{{ req.faculty_name }}</strong>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <h4 style="margin-top:1.5rem;">Timeline</h4>
+  {% if not timeline %}
+  <p class="text-muted">No comments yet.</p>
+  {% else %}
+  <ul class="list-unstyled">
+    {% for item in timeline %}
+    <li class="card mb-2"
+        style="border-left:4px solid {% if item.event_kind == 'comment' %}#2563eb{% else %}#94a3b8{% endif %};">
+      <div class="card-body" style="padding:0.7rem 1rem;">
+        {% if item.event_kind == 'comment' %}
+        <div class="d-flex justify-between" style="font-size:0.85rem;">
+          <strong>{{ item.name or 'unknown' }}</strong>
+          <small class="text-muted">{{ item.role or '' }} · {{ item.created_at }}</small>
+        </div>
+        <p style="white-space:pre-wrap;margin:0.3rem 0 0 0;">{{ item.body }}</p>
+        {% else %}
+        <small class="text-muted">
+          ⚙️ {{ item.created_at }} · {{ item.name or 'system' }} · {{ item.event_kind }}
+        </small>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('request_comment', req_id=req.req_id) }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label>Add a comment</label>
+      <textarea name="body" rows="3" required class="form-control"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary mt-2"
+            style="width:auto;padding:0.5rem 1.5rem;">Post comment</button>
+  </form>
+</div>
+{% endblock %}

@@ -17,21 +17,27 @@
           <th>Description</th>
           <th>Status</th>
           <th>Date</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for r in requests %}
         <tr>
           <td>{{ r.category }}</td>
-          <td>{{ r.description }}</td>
+          <td>{{ r.description[:80] }}{% if r.description|length > 80 %}…{% endif %}</td>
           <td>
             <span class="badge {{ r.status }}">{{ r.status }}</span>
           </td>
           <td>{{ r.created_at }}</td>
+          <td>
+            <a href="{{ url_for('request_detail', req_id=r.req_id) }}"
+               class="btn btn-primary"
+               style="padding:0.25rem 0.8rem;font-size:0.85rem;width:auto;">Open</a>
+          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="4" class="text-center text-muted">No requests found.</td>
+          <td colspan="5" class="text-center text-muted">No requests found.</td>
         </tr>
         {% endfor %}
       </tbody>

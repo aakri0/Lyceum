@@ -99,16 +99,41 @@ CREATE TABLE `enrollments` (
   `enrollment_id` int NOT NULL AUTO_INCREMENT,
   `student_id` int DEFAULT NULL,
   `course_id` int DEFAULT NULL,
+  `section_id` int DEFAULT NULL,
   `semester` int NOT NULL,
   `grade` varchar(10) DEFAULT NULL,
   `grade_points` decimal(3,2) DEFAULT NULL,
   PRIMARY KEY (`enrollment_id`),
   UNIQUE KEY `student_id` (`student_id`,`course_id`,`semester`),
   KEY `course_id` (`course_id`),
+  KEY `section_id` (`section_id`),
   CONSTRAINT `enrollments_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
   CONSTRAINT `enrollments_ibfk_2` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_enrollment_section` FOREIGN KEY (`section_id`) REFERENCES `course_sections` (`section_id`) ON DELETE SET NULL,
   CONSTRAINT `enrollments_chk_1` CHECK ((`semester` between 1 and 8))
 ) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Table structure for table `course_sections` (B11)
+--
+
+DROP TABLE IF EXISTS `course_sections`;
+CREATE TABLE `course_sections` (
+  `section_id` int NOT NULL AUTO_INCREMENT,
+  `course_id` int NOT NULL,
+  `faculty_id` int DEFAULT NULL,
+  `section_label` varchar(10) NOT NULL DEFAULT 'A',
+  `semester` int NOT NULL,
+  `capacity` int DEFAULT NULL,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`section_id`),
+  UNIQUE KEY `uk_course_label_sem` (`course_id`,`section_label`,`semester`),
+  KEY `idx_section_faculty` (`faculty_id`),
+  KEY `idx_section_course` (`course_id`),
+  CONSTRAINT `fk_section_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_section_faculty` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE SET NULL,
+  CONSTRAINT `chk_section_sem` CHECK ((`semester` between 1 and 8))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

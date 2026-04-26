@@ -7,6 +7,37 @@
             style="width: auto; padding: 0.5rem 1rem;">Back to Dashboard</a>
     </div>
 
+    {# Search + filters (A2) #}
+    <form method="GET" class="d-flex gap-2 mb-3" style="flex-wrap:wrap;align-items:end;">
+      <div style="flex:2;min-width:220px;">
+        <label class="text-muted small mb-1">Search (name / email / roll no)</label>
+        <input type="text" name="q" value="{{ q or '' }}" class="form-control">
+      </div>
+      <div style="flex:1;min-width:160px;">
+        <label class="text-muted small mb-1">Department</label>
+        <select name="dept_id" class="form-control">
+          <option value="">All departments</option>
+          {% for d in departments %}
+          <option value="{{ d.dept_id }}" {% if dept_id_filter == d.dept_id %}selected{% endif %}>
+            {{ d.dept_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="flex:0 0 110px;">
+        <label class="text-muted small mb-1">Year</label>
+        <select name="year" class="form-control">
+          <option value="">All</option>
+          {% for y in range(1, 5) %}
+          <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="height:38px;width:auto;padding:0 1rem;">Filter</button>
+      <a href="{{ url_for('admin_manage_students') }}" class="btn btn-secondary"
+         style="height:38px;width:auto;padding:0 1rem;line-height:38px;">Clear</a>
+    </form>
+
     <div class="card mb-4 shadow-sm" style="border-left: 5px solid var(--primary);">
         <div class="card-body">
             <h5 class="card-title text-primary mb-3">🎓 Bulk Semester Promotion</h5>

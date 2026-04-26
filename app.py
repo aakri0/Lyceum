@@ -166,6 +166,139 @@ def _audit(cur, user_id, action):
     )
 
 
+def _is_locked(cur, email: str) -> bool:
+    """Return True if ``email`` currently has an active lock."""
+    cur.execute(
+        "SELECT 1 FROM account_locks WHERE email=%s AND locked_until > NOW()",
+        (email.lower(),),
+    )
+    return cur.fetchone() is not None
+
+
+def _record_failed_login(cur, email: str) -> bool:
+    """Record a failed login attempt; return True iff the account just got locked.
+
+    Reads thresholds from env: LOCKOUT_FAILED_THRESHOLD (default 5),
+    LOCKOUT_WINDOW_SECONDS (default 900 = 15min),
+    LOCKOUT_DURATION_SECONDS (default 900 = 15min).
+    """
+    threshold = int(os.environ.get("LOCKOUT_FAILED_THRESHOLD", "5"))
+    window = int(os.environ.get("LOCKOUT_WINDOW_SECONDS", "900"))
+    duration = int(os.environ.get("LOCKOUT_DURATION_SECONDS", "900"))
+
+    ip = (request.headers.get("X-Forwarded-For", request.remote_addr) or "")[:45]
+    cur.execute(
+        "INSERT INTO login_attempts (email, ip_address) VALUES (%s, %s)",
+        (email.lower(), ip),
+    )
+    cur.execute(
+        "SELECT COUNT(*) FROM login_attempts "
+        "WHERE email=%s AND occurred_at > (NOW() - INTERVAL %s SECOND)",
+        (email.lower(), window),
+    )
+    row = cur.fetchone()
+    # row may be a tuple or dict depending on cursor type; coerce to int.
+    count = int(list(row.values())[0] if isinstance(row, dict) else row[0])
+    if count >= threshold:
+        cur.execute(
+            "INSERT INTO account_locks (email, locked_until) "
+            "VALUES (%s, (NOW() + INTERVAL %s SECOND)) "
+            "ON DUPLICATE KEY UPDATE locked_until = (NOW() + INTERVAL %s SECOND)",
+            (email.lower(), duration, duration),
+        )
+        return True
+    return False
+
+
+def _clear_login_attempts(cur, email: str) -> None:
+    """Wipe attempt history + any lock — called on successful auth."""
+    cur.execute("DELETE FROM login_attempts WHERE email=%s", (email.lower(),))
+    cur.execute("DELETE FROM account_locks WHERE email=%s", (email.lower(),))
+
+
+def _swd_event(cur, req_id: int, user_id: int | None, event_kind: str, body: str | None = None) -> None:
+    """Append a system event (or user comment) to a request's timeline.
+
+    user_id=None for system events; event_kind != 'comment' marks it as
+    a state-change row so the template can render it differently.
+    """
+    cur.execute(
+        "INSERT INTO swd_comments (req_id, user_id, body, event_kind) "
+        "VALUES (%s, %s, %s, %s)",
+        (req_id, user_id, body, event_kind[:32]),
+    )
+
+
+def _notify(cur, user_id, kind: str, message: str, link: str | None = None) -> None:
+    """Insert an in-app notification for ``user_id``.
+
+    Caller is responsible for committing the surrounding transaction —
+    keeping it part of the same DB transaction means notifications never
+    fire for events that ultimately rolled back.
+    """
+    cur.execute(
+        "INSERT INTO notifications (user_id, kind, message, link) "
+        "VALUES (%s, %s, %s, %s)",
+        (user_id, kind[:32], message[:500], (link or None) and link[:255]),
+    )
+
+
+@app.context_processor
+def _inject_notification_count():
+    """Make ``unread_notifications`` available in every template's nav.
+
+    Returns 0 (cheap) when there's no logged-in user. The query is a
+    single indexed COUNT so the cost-per-pageload stays trivial.
+    """
+    if not session.get('user_id'):
+        return {"unread_notifications": 0}
+    try:
+        conn = get_connection()
+        if conn is None:
+            return {"unread_notifications": 0}
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM notifications WHERE user_id=%s AND read_at IS NULL",
+            (session['user_id'],),
+        )
+        (count,) = cur.fetchone()
+        cur.close()
+        conn.close()
+        return {"unread_notifications": count}
+    except Exception:
+        logger.exception("notification count lookup failed")
+        return {"unread_notifications": 0}
+
+
+def _announcements_for(cur, role: str, dept_id=None, year_of_study=None, course_ids=None):
+    """Fetch announcements visible to a user with the given profile.
+
+    A row matches when every set ``target_*`` field matches the user's
+    profile. NULL targeting fields = "any".
+      - target_dept_id NULL or matches dept_id
+      - target_year    NULL or matches year_of_study
+      - target_role    NULL or matches role
+      - target_course_id NULL or in course_ids (when provided)
+    Pinned items first, then by recency.
+    """
+    course_ids = course_ids or []
+    placeholders = "(" + ",".join(["%s"] * len(course_ids)) + ")" if course_ids else "(NULL)"
+    cur.execute(f"""
+        SELECT a.announcement_id, a.title, a.body, a.pinned, a.created_at, a.expires_at,
+               u.name AS poster_name
+        FROM announcements a
+        JOIN users u ON a.posted_by = u.user_id
+        WHERE (a.expires_at IS NULL OR a.expires_at > NOW())
+          AND (a.target_dept_id IS NULL OR a.target_dept_id = %s)
+          AND (a.target_year IS NULL OR a.target_year = %s)
+          AND (a.target_role IS NULL OR a.target_role = %s)
+          AND (a.target_course_id IS NULL OR a.target_course_id IN {placeholders})
+        ORDER BY a.pinned DESC, a.created_at DESC
+        LIMIT 20
+    """, tuple([dept_id, year_of_study, role] + list(course_ids)))
+    return cur.fetchall()
+
+
 def _paginate(default_per_page=50, max_per_page=200):
     """Parse ?page=&per_page= query params into (page, per_page, offset).
 

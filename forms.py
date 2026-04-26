@@ -143,7 +143,7 @@ class ResetPasswordForm(Form, _PasswordPolicyMixin):
 # =============================================================
 # Student
 # =============================================================
-_SWD_CATEGORIES = ["Leave", "Hostel", "Medical", "Financial Aid"]
+_SWD_CATEGORIES = ["Leave", "Hostel", "Medical", "Financial Aid", "Bonafide"]
 
 
 class NewSWDRequestForm(Form):
@@ -174,10 +174,39 @@ class CourseForm(Form):
 
 
 class EnrollForm(Form):
+    """Enroll a student into a section.
+
+    ``course_id`` is kept for backwards-compatibility but ``section_id`` is
+    the source of truth — section already pins course + semester + faculty.
+    """
     student_id = IntegerField("student_id", validators=[DataRequired(), NumberRange(min=1)])
+    section_id = IntegerField("section_id", validators=[DataRequired(), NumberRange(min=1)])
+
+
+class SectionForm(Form):
+    """Admin: create / edit a section of a course."""
     course_id = IntegerField("course_id", validators=[DataRequired(), NumberRange(min=1)])
+    section_label = StringField("section_label", validators=[
+        DataRequired(),
+        Length(min=1, max=10),
+        Regexp(r"^[A-Za-z0-9-]+$", message="Section label must be alphanumeric / hyphen."),
+    ])
     semester = IntegerField("semester", validators=[
         DataRequired(), NumberRange(min=1, max=8),
+    ])
+    faculty_id = IntegerField("faculty_id", validators=[Optional(), NumberRange(min=1)])
+    capacity = IntegerField("capacity", validators=[
+        Optional(), NumberRange(min=1, max=500),
+    ])
+
+
+class AssignSectionForm(Form):
+    """Admin: re-allocate a student's enrollment to a different section."""
+    enrollment_id = IntegerField("enrollment_id", validators=[
+        DataRequired(), NumberRange(min=1),
+    ])
+    section_id = IntegerField("section_id", validators=[
+        DataRequired(), NumberRange(min=1),
     ])
 
 
@@ -313,4 +342,71 @@ class ResolveRequestForm(Form):
 class ForwardRequestForm(Form):
     faculty_id = IntegerField("faculty_id", validators=[
         DataRequired(), NumberRange(min=1),
+    ])
+
+
+class SWDCommentForm(Form):
+    body = TextAreaField("body", validators=[DataRequired(), Length(min=2, max=4000)])
+
+
+class ChangePasswordForm(Form, _PasswordPolicyMixin):
+    """Logged-in user changing their own password.
+
+    Requires the current password (so a hijacked-but-not-logged-in attacker
+    can't trivially change it from a stolen session) plus a new password
+    that satisfies the same policy as forgotten-password reset.
+    """
+    current_password = PasswordField("current_password", validators=[
+        DataRequired(), Length(min=1, max=128),
+    ])
+    password = PasswordField("password", validators=[
+        DataRequired(),
+        Length(min=8, max=128, message="Password must be at least 8 characters."),
+    ])
+    confirm = PasswordField("confirm", validators=[
+        DataRequired(),
+        Length(min=8, max=128),
+    ])
+
+    def validate(self, *args, **kwargs):
+        if not super().validate(*args, **kwargs):
+            return False
+        ok = True
+        if self.password.data != self.confirm.data:
+            self.confirm.errors.append("Passwords do not match.")
+            ok = False
+        if self.password.data == self.current_password.data:
+            self.password.errors.append("New password must differ from the current one.")
+            ok = False
+        for err in self._check_password_policy(self.password.data or ""):
+            self.password.errors.append(err)
+            ok = False
+        return ok
+
+
+# =============================================================
+# Announcements (B3)
+# =============================================================
+class AnnouncementForm(Form):
+    title = StringField("title", validators=[DataRequired(), Length(min=3, max=150)])
+    body = TextAreaField("body", validators=[DataRequired(), Length(min=5, max=8000)])
+    target_dept_id = IntegerField("target_dept_id", validators=[
+        Optional(), NumberRange(min=1),
+    ])
+    target_year = IntegerField("target_year", validators=[
+        Optional(), NumberRange(min=1, max=4),
+    ])
+    target_role = SelectField(
+        "target_role",
+        choices=[("", "All roles"), ("student", "Students only"), ("faculty", "Faculty only")],
+        validators=[Optional(), AnyOf(["", "student", "faculty"])],
+    )
+    target_course_id = IntegerField("target_course_id", validators=[
+        Optional(), NumberRange(min=1),
+    ])
+    pinned = StringField("pinned", validators=[Optional(), Length(max=1)])
+    expires_at = StringField("expires_at", validators=[
+        Optional(), Length(max=20),
+        Regexp(r"^(\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2})?)?$",
+               message="Use format YYYY-MM-DD or YYYY-MM-DD HH:MM."),
     ])

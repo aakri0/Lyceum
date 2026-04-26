@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-between mb-4">
+    <h2>Announcements</h2>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
+       style="width:auto;padding:0.5rem 1rem;">Back</a>
+  </div>
+
+  <div class="card mb-4 shadow-sm" style="border-left:5px solid var(--primary);">
+    <div class="card-body">
+      <h5 class="card-title text-primary mb-3">📣 Post Announcement</h5>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" name="title" maxlength="150" required class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Body</label>
+          <textarea name="body" rows="4" required class="form-control"></textarea>
+        </div>
+        <div class="d-flex gap-2" style="flex-wrap:wrap;">
+          <div style="flex:1;min-width:160px;">
+            <label class="text-muted small mb-1">Department (optional)</label>
+            <select name="target_dept_id" class="form-control">
+              <option value="">All departments</option>
+              {% for d in departments %}
+              <option value="{{ d.dept_id }}">{{ d.dept_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:0 0 110px;">
+            <label class="text-muted small mb-1">Year</label>
+            <select name="target_year" class="form-control">
+              <option value="">All</option>
+              {% for y in range(1, 5) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+            </select>
+          </div>
+          <div style="flex:0 0 140px;">
+            <label class="text-muted small mb-1">Role</label>
+            <select name="target_role" class="form-control">
+              <option value="">All</option>
+              <option value="student">Students</option>
+              <option value="faculty">Faculty</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <label class="text-muted small mb-1">Course (optional)</label>
+            <select name="target_course_id" class="form-control">
+              <option value="">All courses</option>
+              {% for c in courses %}
+              <option value="{{ c.course_id }}">{{ c.course_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:0 0 200px;">
+            <label class="text-muted small mb-1">Expires (optional)</label>
+            <input type="text" name="expires_at" placeholder="YYYY-MM-DD" class="form-control">
+          </div>
+          <div style="display:flex;align-items:end;">
+            <label style="display:flex;align-items:center;gap:0.4rem;">
+              <input type="checkbox" name="pinned" value="1"> Pin
+            </label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3" style="width:auto;padding:0.5rem 1.5rem;">
+          Post
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if items %}
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th>Title</th>
+          <th>Targeting</th>
+          <th>Pinned</th>
+          <th>Expires</th>
+          <th>Posted</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in items %}
+        <tr>
+          <td><strong>{{ a.title }}</strong><br><small class="text-muted">by {{ a.poster_name }}</small></td>
+          <td>
+            {{ a.dept_name or 'All depts' }} ·
+            {{ ('Year ' ~ a.target_year) if a.target_year else 'All years' }} ·
+            {{ a.target_role or 'all roles' }}
+            {% if a.course_name %}<br><small>Course: {{ a.course_name }}</small>{% endif %}
+          </td>
+          <td>{{ '📌' if a.pinned else '' }}</td>
+          <td>{{ a.expires_at or '—' }}</td>
+          <td>{{ a.created_at }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('admin_announcement_delete', announcement_id=a.announcement_id) }}"
+                  onsubmit="return confirm('Delete this announcement?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger" style="width:auto;padding:0.25rem 0.8rem;font-size:0.85rem;">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -18,6 +18,7 @@
                     <th>Category</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -26,7 +27,7 @@
                     <td>{{ r.student_name }}</td>
                     <td>{{ r.roll_no }}</td>
                     <td>{{ r.category }}</td>
-                    <td>{{ r.description }}</td>
+                    <td>{{ r.description[:80] }}{% if r.description|length > 80 %}…{% endif %}</td>
                     <td>
                         {% if r.status == 'pending' %}
                         <span class="badge pending">Pending</span>
@@ -35,6 +36,11 @@
                         {% elif r.status == 'rejected' %}
                         <span class="badge rejected">Rejected</span>
                         {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('request_detail', req_id=r.req_id) }}"
+                           class="btn btn-primary"
+                           style="padding:0.25rem 0.8rem;font-size:0.85rem;width:auto;">Open</a>
                     </td>
                 </tr>
                 {% endfor %}

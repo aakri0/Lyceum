@@ -15,6 +15,8 @@
       {% if session.get('role') == 'student' %}
       <a href="{{ url_for('student_dashboard') }}" class="nav-link">Dashboard</a>
       <a href="{{ url_for('student_courses') }}" class="nav-link">Courses</a>
+      <a href="{{ url_for('student_materials') }}" class="nav-link">Materials</a>
+      <a href="{{ url_for('student_attendance') }}" class="nav-link">Attendance</a>
       <a href="{{ url_for('student_progress') }}" class="nav-link">Progress</a>
       <a href="{{ url_for('student_requests') }}" class="nav-link">Requests</a>
       {% endif %}
@@ -22,6 +24,8 @@
       {# ================= FACULTY NAVBAR ================= #}
       {% if session.get('role') == 'faculty' %}
       <a href="{{ url_for('faculty_dashboard') }}" class="nav-link">Dashboard</a>
+      <a href="{{ url_for('faculty_courses') }}" class="nav-link">My Sections</a>
+      <a href="{{ url_for('faculty_requests') }}" class="nav-link">Requests</a>
       {% endif %}
 
       {# ================= ADMIN NAVBAR ================= #}
@@ -36,6 +40,7 @@
           <a href="{{ url_for('admin_manage_students') }}">Manage Students</a>
           <a href="{{ url_for('admin_manage_faculty') }}">Manage Faculty</a>
           <a href="{{ url_for('admin_manage_departments') }}">Manage Departments</a>
+          <a href="{{ url_for('admin_course_allotment') }}">Course Allotment</a>
           <a href="{{ url_for('admin_create_user') }}">Create New User</a>
           <hr style="margin: 0; border-top: 1px solid var(--border);">
           <a href="{{ url_for('admin_export_csv') }}">Export Data (CSV)</a>
@@ -44,6 +49,30 @@
 
       <a href="{{ url_for('admin_audit_logs') }}" class="nav-link">Audit Logs</a>
       {% endif %}
+
+      {# ================= ACCOUNT (A9 + C7 + C10) ================= #}
+      <div class="dropdown">
+        <a href="#" class="nav-link" style="cursor:default;">Account &darr;</a>
+        <div class="dropdown-content">
+          <a href="{{ url_for('change_password') }}">Change password</a>
+          {% if session.get('role') == 'student' %}
+          <a href="{{ url_for('student_profile') }}">My profile</a>
+          <a href="{{ url_for('student_export') }}">Download my data</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ================= NOTIFICATIONS BELL (B2) ================= #}
+      <a href="{{ url_for('notifications') }}" class="nav-link"
+         style="position:relative;" title="Notifications">
+        🔔
+        {% if unread_notifications %}
+        <span style="position:absolute;top:-4px;right:-8px;background:#ef4444;color:#fff;
+                     border-radius:9999px;font-size:0.7rem;padding:1px 6px;font-weight:bold;">
+          {{ unread_notifications }}
+        </span>
+        {% endif %}
+      </a>
 
       <a href="{{ url_for('logout') }}" class="nav-logout">
         Logout

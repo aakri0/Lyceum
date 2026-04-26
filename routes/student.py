@@ -21,7 +21,18 @@ from flask import (
 )
 from mysql.connector import Error
 
-from app import _audit, app, bcrypt, csrf, limiter, logger
+from app import (
+    _announcements_for,
+    _audit,
+    _clear_login_attempts,
+    _is_locked,
+    _record_failed_login,
+    app,
+    bcrypt,
+    csrf,
+    limiter,
+    logger,
+)
 from db import get_connection
 from utils.email_utils import send_otp_email, send_password_reset_email
 from forms import LoginForm, NewSWDRequestForm
@@ -42,6 +53,13 @@ def student_login():
 
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
+
+        if _is_locked(cur, email):
+            conn.close()
+            flash("Account temporarily locked due to too many failed attempts. "
+                  "Try again later or use Forgot Password.", "danger")
+            return render_template('student/student_login.html')
+
         cur.execute("""
             SELECT u.user_id, u.password, u.email, s.student_id
             FROM users u
@@ -49,9 +67,11 @@ def student_login():
             WHERE u.email=%s AND u.role='student'
         """, (email,))
         user = cur.fetchone()
-        conn.close()
 
         if user and bcrypt.check_password_hash(user['password'], password):
+            _clear_login_attempts(cur, email)
+            conn.commit()
+            conn.close()
             session.clear()
             session['temp_user'] = user['user_id']
             session['student_id'] = user['student_id']
@@ -74,7 +94,14 @@ def student_login():
             flash("OTP sent to your email", "info")
             return redirect(url_for('verify_otp'))
 
-        flash("Invalid credentials", "danger")
+        # Failed login: record attempt + maybe lock.
+        locked = _record_failed_login(cur, email)
+        conn.commit()
+        conn.close()
+        if locked:
+            flash("Too many failed attempts. Account locked for 15 minutes.", "danger")
+        else:
+            flash("Invalid credentials", "danger")
 
     return render_template('student/student_login.html')
 
@@ -90,15 +117,27 @@ def student_dashboard():
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
     
-    # Get student_id
-    cur.execute("SELECT student_id FROM students WHERE user_id=%s", (session['user_id'],))
+    cur.execute("""
+        SELECT s.student_id, s.dept_id, s.year_of_study
+        FROM students s WHERE s.user_id=%s
+    """, (session['user_id'],))
     student_data = cur.fetchone()
-    
+
     if not student_data:
         conn.close()
-        return render_template('student/student_dashboard.html')
-    
+        return render_template('student/student_dashboard.html', announcements=[])
+
     student_id = student_data['student_id']
+    dept_id = student_data['dept_id']
+    year_of_study = student_data['year_of_study']
+
+    # Pull course_ids for course-targeted announcements.
+    cur.execute("SELECT DISTINCT course_id FROM enrollments WHERE student_id=%s", (student_id,))
+    course_ids = [r['course_id'] for r in cur.fetchall()]
+    announcements = _announcements_for(
+        cur, role='student', dept_id=dept_id,
+        year_of_study=year_of_study, course_ids=course_ids,
+    )
     
     # Get all enrollments with grades for CGPA calculation
     cur.execute("""
@@ -154,9 +193,12 @@ def student_dashboard():
     
     cumulative_cgpa = round(cumulative_points / cumulative_credits, 2) if cumulative_credits > 0 else None
     
-    return render_template('student/student_dashboard.html', 
-                         cumulative_cgpa=cumulative_cgpa,
-                         mini_graph_data=mini_graph_data)
+    return render_template(
+        'student/student_dashboard.html',
+        cumulative_cgpa=cumulative_cgpa,
+        mini_graph_data=mini_graph_data,
+        announcements=announcements,
+    )
 
 
 @app.route('/student_profile')
@@ -167,7 +209,7 @@ def student_profile():
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT u.name, u.email, s.roll_no, s.year_of_study, d.dept_name
+        SELECT u.name, u.email, u.profile_photo, s.roll_no, s.year_of_study, d.dept_name
         FROM users u
         JOIN students s ON u.user_id=s.user_id
         JOIN departments d ON s.dept_id=d.dept_id
@@ -186,11 +228,17 @@ def student_courses():
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT c.course_name, c.credits, e.semester, e.grade
+        SELECT c.course_name, c.credits, e.semester, e.grade,
+               cs.section_label,
+               COALESCE(u.name, '— Unassigned —') AS faculty_name
         FROM enrollments e
-        JOIN courses c ON e.course_id=c.course_id
-        JOIN students s ON e.student_id=s.student_id
+        JOIN courses c ON e.course_id = c.course_id
+        JOIN students s ON e.student_id = s.student_id
+        LEFT JOIN course_sections cs ON cs.section_id = e.section_id
+        LEFT JOIN faculty f ON cs.faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
         WHERE s.user_id=%s
+        ORDER BY e.semester, c.course_name
     """, (session['user_id'],))
     courses = cur.fetchall()
     conn.close()
@@ -363,3 +411,171 @@ def grade_simulator():
     return render_template('student/grade_simulator.html', 
                            current_cgpa=current_cgpa,
                            enrollments=all_enrollments)
+
+
+
+# =============================================================
+# ATTENDANCE (B1) — student side
+# =============================================================
+@app.route('/student_attendance')
+def student_attendance():
+    """Per-course attendance % for the logged-in student.
+
+    Surfaces a warning when the percentage falls below the configured
+    threshold (default 75%, configurable via ATTENDANCE_WARN_THRESHOLD env).
+    Excused sessions ('X') aren't counted in either numerator or denominator.
+    """
+    if 'student_id' not in session:
+        return redirect(url_for('student_login'))
+
+    import os as _os
+    threshold = float(_os.environ.get("ATTENDANCE_WARN_THRESHOLD", "75"))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT c.course_name, cs.section_label, cs.semester,
+               SUM(CASE WHEN a.status = 'P' THEN 1 ELSE 0 END) AS present,
+               SUM(CASE WHEN a.status = 'L' THEN 1 ELSE 0 END) AS late,
+               SUM(CASE WHEN a.status = 'A' THEN 1 ELSE 0 END) AS absent,
+               SUM(CASE WHEN a.status = 'X' THEN 1 ELSE 0 END) AS excused,
+               COUNT(*) AS total
+        FROM attendance a
+        JOIN course_sections cs ON cs.section_id = a.section_id
+        JOIN courses c ON c.course_id = cs.course_id
+        WHERE a.student_id = %s
+        GROUP BY a.section_id, c.course_name, cs.section_label, cs.semester
+        ORDER BY cs.semester, c.course_name
+    """, (session['student_id'],))
+    raw = cur.fetchall()
+    conn.close()
+
+    rows = []
+    for r in raw:
+        countable = (r['total'] or 0) - (r['excused'] or 0)
+        present_or_late = (r['present'] or 0) + (r['late'] or 0)
+        pct = round(100 * present_or_late / countable, 1) if countable else None
+        rows.append({**r, "pct": pct, "below_threshold": pct is not None and pct < threshold})
+
+    return render_template(
+        'student/attendance.html',
+        rows=rows,
+        threshold=threshold,
+    )
+
+
+# =============================================================
+# COURSE MATERIALS (B4) — student side
+# =============================================================
+@app.route('/student_materials')
+def student_materials():
+    """List downloadable materials for every course the student is enrolled in."""
+    if 'student_id' not in session:
+        return redirect(url_for('student_login'))
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT m.material_id, m.title, m.file_name, m.size_bytes, m.uploaded_at,
+               c.course_name, u.name AS uploader
+        FROM course_materials m
+        JOIN courses c ON m.course_id = c.course_id
+        JOIN users u ON m.uploaded_by = u.user_id
+        WHERE m.course_id IN (
+            SELECT DISTINCT e.course_id FROM enrollments e
+            WHERE e.student_id = %s
+        )
+        ORDER BY c.course_name, m.uploaded_at DESC
+    """, (session['student_id'],))
+    materials = cur.fetchall()
+    conn.close()
+
+    # Group by course for nicer rendering.
+    by_course: dict = {}
+    for m in materials:
+        by_course.setdefault(m['course_name'], []).append(m)
+    return render_template('student/materials.html', by_course=by_course)
+
+
+# =============================================================
+# DATA EXPORT (C10) — student downloads everything we have on them
+# =============================================================
+@app.route('/student_export')
+def student_export():
+    """Bundle the student's profile + enrollments + grades + requests +
+    attendance + notifications into a single JSON download.
+
+    Useful for transfers and as a basic GDPR-style "right of access"
+    export. CSV would be marginally easier to spreadsheet but loses the
+    nesting; JSON is the better fit for nested per-course data.
+    """
+    if 'student_id' not in session:
+        return redirect(url_for('student_login'))
+
+    import json
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT u.user_id, u.name, u.email,
+               s.student_id, s.roll_no, s.year_of_study, s.current_semester,
+               d.dept_name
+        FROM users u
+        JOIN students s ON u.user_id = s.user_id
+        JOIN departments d ON s.dept_id = d.dept_id
+        WHERE s.student_id = %s
+    """, (session['student_id'],))
+    profile = cur.fetchone()
+
+    cur.execute("""
+        SELECT c.course_name, c.credits, e.semester, e.grade,
+               cs.section_label,
+               COALESCE(u.name, '') AS faculty_name
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.course_id
+        LEFT JOIN course_sections cs ON cs.section_id = e.section_id
+        LEFT JOIN faculty f ON cs.faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
+        WHERE e.student_id = %s
+        ORDER BY e.semester, c.course_name
+    """, (session['student_id'],))
+    enrollments = cur.fetchall()
+
+    cur.execute("""
+        SELECT r.req_id, r.category, r.description, r.status, r.created_at
+        FROM swd_requests r WHERE r.student_id=%s ORDER BY r.created_at DESC
+    """, (session['student_id'],))
+    requests_ = cur.fetchall()
+
+    cur.execute("""
+        SELECT a.session_date, a.status, c.course_name, cs.section_label
+        FROM attendance a
+        JOIN course_sections cs ON cs.section_id = a.section_id
+        JOIN courses c ON c.course_id = cs.course_id
+        WHERE a.student_id = %s
+        ORDER BY a.session_date DESC
+    """, (session['student_id'],))
+    attendance_rows = cur.fetchall()
+
+    cur.execute("""
+        SELECT kind, message, created_at, read_at FROM notifications
+        WHERE user_id = %s ORDER BY created_at DESC LIMIT 200
+    """, (session['user_id'],))
+    notifs = cur.fetchall()
+
+    conn.close()
+
+    payload = {
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "profile": profile,
+        "enrollments": enrollments,
+        "requests": requests_,
+        "attendance": attendance_rows,
+        "notifications": notifs,
+    }
+    body = json.dumps(payload, default=str, indent=2)
+    resp = Response(body, mimetype="application/json")
+    resp.headers["Content-Disposition"] = (
+        f"attachment; filename=erp_data_{profile['roll_no']}.json"
+    )
+    return resp
