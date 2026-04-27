@@ -141,6 +141,44 @@ def _release_db_connections(exc):
     close_tracked_connections()
 
 
+@app.context_processor
+def _inject_current_user():
+    """Expose ``current_user`` (name + photo) and ``unread_notifications``
+    to every template. Both are cached on ``flask.g`` so a page that uses
+    them in nav + body still hits the DB only once.
+
+    Degrades silently to an empty dict on any failure — never wants to
+    break page rendering because the topbar can't load a name.
+    """
+    from flask import g
+
+    if not session.get('user_id'):
+        return {'current_user': None, 'unread_notifications': 0}
+
+    if not hasattr(g, '_current_user_cache'):
+        try:
+            conn = get_connection()
+            cur = conn.cursor(dictionary=True)
+            cur.execute(
+                "SELECT name, email, profile_photo FROM users WHERE user_id=%s",
+                (session['user_id'],),
+            )
+            user = cur.fetchone() or {}
+            cur.execute(
+                "SELECT COUNT(*) AS c FROM notifications WHERE user_id=%s AND read_at IS NULL",
+                (session['user_id'],),
+            )
+            unread = (cur.fetchone() or {}).get('c', 0)
+            cur.close()
+            conn.close()
+            g._current_user_cache = (user, int(unread or 0))
+        except Exception:
+            g._current_user_cache = ({}, 0)
+
+    user, unread = g._current_user_cache
+    return {'current_user': user, 'unread_notifications': unread}
+
+
 @app.errorhandler(DBUnavailable)
 def _handle_db_unavailable(exc: DBUnavailable):
     """Render a friendly 503 instead of an opaque NoneType.cursor traceback

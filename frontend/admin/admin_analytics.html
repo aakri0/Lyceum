@@ -1,135 +1,191 @@
 {% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+
 {% block content %}
-
-<div class="d-flex justify-between align-items-center mb-4">
-    <h2>Analytics Overview</h2>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary" style="width: auto; height: fit-content;">Back
-        to Dashboard</a>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Analytics</h1>
+    <div class="subtitle">Institution-wide metrics for the selected date range.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('admin_export_csv') }}" class="btn btn-secondary">
+      <svg class="icon"><use href="#i-download"/></svg> Export requests as CSV
+    </a>
+  </div>
 </div>
 
-<!-- Filters -->
-<div class="card mb-4" style="background-color: var(--surface);">
-    <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 200px;">
-            <label>From Date:</label>
-            <input type="date" name="start_date" value="{{ start_date }}">
+{# Date-range filter #}
+<form method="GET" class="card mb-4">
+  <div class="card-body">
+    <div class="form-row">
+      <div>
+        <label>From date</label>
+        <input type="date" name="start_date" value="{{ start_date }}">
+      </div>
+      <div>
+        <label>To date</label>
+        <input type="date" name="end_date" value="{{ end_date }}">
+      </div>
+      <div class="d-flex align-end gap-2" style="padding-top:24px;">
+        <button type="submit" class="btn">
+          <svg class="icon"><use href="#i-funnel"/></svg> Apply
+        </button>
+        <a href="{{ url_for('admin_analytics') }}" class="btn btn-ghost">Reset</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+{# KPI strip — institution totals + filtered request count. #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-users"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Students</span>
+      <span class="kpi-value">{{ total_students }}</span>
+      <span class="kpi-meta">institution-wide</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-id-card"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Faculty</span>
+      <span class="kpi-value">{{ total_faculty }}</span>
+      <span class="kpi-meta">institution-wide</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Requests in range</span>
+      <span class="kpi-value">{{ total_requests }}</span>
+      <span class="kpi-meta">{{ start_date }} → {{ end_date }}</span>
+    </div>
+  </div>
+</div>
+
+{# Three-up chart grid: status, category, department. #}
+<div class="d-grid" style="grid-template-columns: 1fr 1fr;">
+  <div class="card">
+    <div class="card-header">
+      <h3>Requests by status</h3>
+      <small class="text-muted">in selected range</small>
+    </div>
+    <div class="card-body">
+      {% if status_data %}
+        <div class="chart-wrap" style="height:280px;"><canvas id="statusChart"></canvas></div>
+      {% else %}
+        <div class="empty-state" style="padding: var(--sp-8) 0;">
+          <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-chart"/></svg></div>
+          <h4>No data for this range</h4>
         </div>
-        <div style="flex: 1; min-width: 200px;">
-            <label>To Date:</label>
-            <input type="date" name="end_date" value="{{ end_date }}">
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Requests by category</h3>
+      <small class="text-muted">in selected range</small>
+    </div>
+    <div class="card-body">
+      {% if category_data %}
+        <div class="chart-wrap" style="height:280px;"><canvas id="categoryChart"></canvas></div>
+      {% else %}
+        <div class="empty-state" style="padding: var(--sp-8) 0;">
+          <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-chart"/></svg></div>
+          <h4>No data for this range</h4>
         </div>
-        <div style="display: flex; gap: 1rem;">
-            <button type="submit" class="btn btn-primary" style="width: auto; height: fit-content;">Apply
-                Filters</button>
-            <a href="{{ url_for('admin_export_csv') }}" class="btn btn-outline-primary"
-                style="width: auto; height: fit-content;">Export Data (CSV)</a>
-        </div>
-    </form>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
-<!-- Key Metrics -->
-<div class="dashboard-grid mb-4">
-    <div class="card text-center">
-        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Students</h4>
-        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_students }}</h2>
-    </div>
-    <div class="card text-center">
-        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Faculty</h4>
-        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_faculty }}</h2>
-    </div>
-    <div class="card text-center">
-        <h4 class="text-muted" style="margin-bottom: 0.5rem;">Total Requests</h4>
-        <h2 style="font-size: 2.5rem; color: var(--primary);">{{ total_requests }}</h2>
-    </div>
+<div class="card">
+  <div class="card-header">
+    <h3>Requests by department</h3>
+    <small class="text-muted">in selected range</small>
+  </div>
+  <div class="card-body">
+    {% if dept_data %}
+      <div class="chart-wrap" style="height:320px;"><canvas id="deptChart"></canvas></div>
+    {% else %}
+      <div class="empty-state" style="padding: var(--sp-8) 0;">
+        <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-chart"/></svg></div>
+        <h4>No data for this range</h4>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
-<!-- Charts -->
-<div class="dashboard-grid">
-    <div class="card">
-        <h4 class="card-title">Request Status</h4>
-        <canvas id="statusChart"></canvas>
-    </div>
-    <div class="card">
-        <h4 class="card-title">Request Categories</h4>
-        <canvas id="categoryChart"></canvas>
-    </div>
-    <div class="card">
-        <h4 class="card-title">Enrollment by Dept</h4>
-        <canvas id="deptChart"></canvas>
-    </div>
-</div>
+<script id="status-data" type="application/json">{{ status_data | tojson }}</script>
+<script id="category-data" type="application/json">{{ category_data | tojson }}</script>
+<script id="dept-data" type="application/json">{{ dept_data | tojson }}</script>
+{% endblock %}
 
-<script id="status-data" type="application/json">
-  {{ status_data | tojson }}
-</script>
-<script id="category-data" type="application/json">
-  {{ category_data | tojson }}
-</script>
-<script id="dept-data" type="application/json">
-  {{ dept_data | tojson }}
-</script>
-
+{% block body_end %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    function renderChart(id, labels, counts, type) {
-        return new Chart(document.getElementById(id), {
-            type: type,
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Count',
-                    data: counts,
-                    // Updated Vibrant Palette
-                    backgroundColor: [
-                        '#4F46E5',  // Indigo
-                        '#10B981',  // Emerald
-                        '#F59E0B',  // Amber
-                        '#EF4444',  // Red
-                        '#8B5CF6'   // Violet
-                    ],
-                    borderColor: '#ffffff',
-                    borderWidth: 2,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20
-                        }
-                    }
-                },
-                scales: type === 'bar' ? {
-                    y: {
-                        beginAtZero: true,
-                        grid: { display: false }
-                    },
-                    x: {
-                        grid: { display: false }
-                    }
-                } : {}
-            }
-        });
-    }
+  const PALETTE = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+  const FONT = "system-ui, 'Inter', -apple-system, sans-serif";
+  Chart.defaults.font.family = FONT;
+  Chart.defaults.color = '#475569';
 
-    const statusData = JSON.parse(document.getElementById('status-data').textContent);
-    const categoryData = JSON.parse(document.getElementById('category-data').textContent);
-    const deptData = JSON.parse(document.getElementById('dept-data').textContent);
+  function donut(canvasId, labels, counts) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: PALETTE,
+          borderColor: '#ffffff',
+          borderWidth: 3,
+          hoverOffset: 8,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, boxWidth: 8 } },
+          tooltip: { boxPadding: 6 },
+        },
+      },
+    });
+  }
 
-    if (statusData.length)
-        renderChart('statusChart', statusData.map(x => x.status), statusData.map(x => x.count), 'doughnut'); // Changed to Doughnut for modern look
+  function bars(canvasId, labels, counts) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: '#4f46e5',
+          borderRadius: 6,
+          maxBarThickness: 36,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(15,23,42,0.06)' } },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+  }
 
-    if (categoryData.length)
-        renderChart('categoryChart', categoryData.map(x => x.category), categoryData.map(x => x.count), 'bar');
+  const statusData = JSON.parse(document.getElementById('status-data').textContent);
+  const categoryData = JSON.parse(document.getElementById('category-data').textContent);
+  const deptData = JSON.parse(document.getElementById('dept-data').textContent);
 
-    if (deptData.length)
-        renderChart('deptChart', deptData.map(x => x.dept_name), deptData.map(x => x.count), 'bar');
-
+  if (statusData.length)   donut('statusChart',   statusData.map(x => x.status),     statusData.map(x => x.count));
+  if (categoryData.length) bars('categoryChart',  categoryData.map(x => x.category), categoryData.map(x => x.count));
+  if (deptData.length)     bars('deptChart',      deptData.map(x => x.dept_name),    deptData.map(x => x.count));
 </script>
-
 {% endblock %}

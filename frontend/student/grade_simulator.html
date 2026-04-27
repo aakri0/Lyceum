@@ -1,179 +1,169 @@
 {% extends "base.html" %}
+{% block title %}Grade Simulator{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 1000px;">
-
-    <div class="d-flex justify-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">Grade Simulator</h2>
-            <p class="text-muted">Simulate grades for any course to see how it affects your CGPA.</p>
-        </div>
-        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
-    </div>
-
-    <!-- Current Standing Card -->
-    <div class="card mb-4" style="background: linear-gradient(135deg, #1A2980 0%, #26D0CE 100%); color: white;">
-        <div class="d-flex justify-between align-items-center">
-            <div>
-                <span style="font-size: 0.9em; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">Current
-                    Stats</span>
-                <div class="d-flex align-items-end gap-4 mt-2">
-                    <div>
-                        <div style="font-size: 3em; font-weight: 700; line-height: 1;">{{ current_cgpa }}</div>
-                        <div style="font-size: 0.9em; opacity: 0.8;">Current Real CGPA</div>
-                    </div>
-                </div>
-            </div>
-            <div style="text-align: right; opacity: 0.2;">
-                <i style="font-size: 6rem;">📊</i>
-            </div>
-        </div>
-    </div>
-
-    <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; align-items: start;">
-
-        <!-- Simulation Input -->
-        <div class="card">
-            <h3 class="card-title mb-4">Course Grades</h3>
-
-            {% if enrollments %}
-            <form id="simulatorForm" style="display: block;">
-                <h4 class="mt-2 mb-4" style="color: var(--primary);">Current Semester Courses</h4>
-
-                <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    {% for course in enrollments %}
-                    <div class="course-input p-3 border rounded d-flex align-items-center justify-between shadow-sm"
-                        style="background: #ffffff;" data-credits="{{ course.credits }}">
-                        <div style="flex: 1; padding-right: 1rem; min-width: 0;">
-                            <div
-                                style="font-weight: 600; color: var(--text); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;">
-                                {{ course.course_name }}
-                            </div>
-                            <small class="text-muted">{{ course.credits }} Credits</small>
-                        </div>
-                        <div style="width: 140px; flex-shrink: 0;">
-                            <label class="text-xs text-muted mb-1 d-block">Grade</label>
-                            <select class="form-input grade-select" style="padding: 0.4rem;">
-                                <option value="10" {% if course.grade in ['A', 'A+' , '10' ] %}selected{% endif %}>A /
-                                    A+ (10)</option>
-                                <option value="9" {% if course.grade in ['B+', '9' ] %}selected{% endif %}>B+ (9)
-                                </option>
-                                <option value="8" {% if course.grade=='B' or course.grade=='8' or (not course.grade)
-                                    %}selected{% endif %}>B (8)</option>
-                                <option value="7" {% if course.grade in ['C+', '7' ] %}selected{% endif %}>C+ (7)
-                                </option>
-                                <option value="6" {% if course.grade in ['C', '6' ] %}selected{% endif %}>C (6)</option>
-                                <option value="5" {% if course.grade in ['D+', '5' ] %}selected{% endif %}>D+ (5)
-                                </option>
-                                <option value="4" {% if course.grade in ['D', '4' ] %}selected{% endif %}>D (4)</option>
-                                <option value="0" {% if course.grade in ['F', '0' ] %}selected{% endif %}>F (0)</option>
-                            </select>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </form>
-            {% else %}
-            <div class="alert info">
-                No course enrollments found.
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Simulation Results -->
-        <div class="card sticky-top" style="top: 2rem;">
-            <h3 class="card-title mb-4">Simulated Results</h3>
-
-            <div class="text-center">
-                <div class="mb-2 text-muted">Projected Cumulative CGPA</div>
-                <div id="simCgpa"
-                    style="font-size: 3.5rem; font-weight: 800; background: linear-gradient(to right, #1A2980, #26D0CE); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                    --</div>
-
-                <div id="impactBadge" class="badge mt-3" style="font-size: 0.9em;">No Change</div>
-            </div>
-
-            <div class="mt-4 pt-4 border-top">
-                <button type="button" class="btn w-100" onclick="resetToDefaults()">Reset to Actual Grades</button>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Grade Simulator</h1>
+    <div class="subtitle">Try different grades to see how they would change your projected CGPA.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">
+      <svg class="icon"><use href="#i-arrow-right"/></svg> Back to Dashboard
+    </a>
+  </div>
 </div>
 
+{# Top KPI strip — current vs projected, with delta. #}
+<div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-chart"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Current CGPA</span>
+      <span class="kpi-value">{{ current_cgpa or '—' }}</span>
+      <span class="kpi-meta">recorded grades only</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-sparkles"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Projected CGPA</span>
+      <span class="kpi-value" id="simCgpa">—</span>
+      <span class="kpi-meta">based on the grades below</span>
+    </div>
+  </div>
+  <div class="kpi" id="kpiDelta">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-arrow-right"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Change</span>
+      <span class="kpi-value" id="deltaValue">—</span>
+      <span class="kpi-meta" id="deltaHint">vs your current CGPA</span>
+    </div>
+  </div>
+</div>
+
+<div class="d-grid" style="grid-template-columns: 2fr 1fr; align-items:flex-start;">
+
+  {# Course rows #}
+  <div class="card flush">
+    <div class="card-header">
+      <h3>Courses</h3>
+      <small class="text-muted">{{ enrollments|length }} {{ 'course' if enrollments|length == 1 else 'courses' }}</small>
+    </div>
+
+    {% if enrollments %}
+    <form id="simulatorForm">
+      <table class="table-compact">
+        <thead>
+          <tr>
+            <th style="width:50%;">Course</th>
+            <th>Credits</th>
+            <th>Current grade</th>
+            <th style="min-width:160px;">Simulated grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in enrollments %}
+          <tr class="course-input" data-credits="{{ course.credits }}">
+            <td>
+              <div class="fw-600">{{ course.course_name }}</div>
+              <small class="text-muted">Sem {{ course.semester or '—' }}</small>
+            </td>
+            <td><span class="tag">{{ course.credits }}</span></td>
+            <td>
+              {% if course.grade %}
+                <span class="badge neutral no-dot">{{ course.grade }}</span>
+              {% else %}
+                <span class="text-subtle">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <select class="grade-select form-control" style="padding: 6px 8px; font-size: var(--fs-sm);">
+                <option value="10" {% if course.grade in ['A','A+','10'] %}selected{% endif %}>A / A+ (10)</option>
+                <option value="9"  {% if course.grade in ['B+','9'] %}selected{% endif %}>B+ (9)</option>
+                <option value="8"  {% if course.grade == 'B' or course.grade == '8' or (not course.grade) %}selected{% endif %}>B (8)</option>
+                <option value="7"  {% if course.grade in ['C+','7'] %}selected{% endif %}>C+ (7)</option>
+                <option value="6"  {% if course.grade in ['C','6'] %}selected{% endif %}>C (6)</option>
+                <option value="5"  {% if course.grade in ['D+','5'] %}selected{% endif %}>D+ (5)</option>
+                <option value="4"  {% if course.grade in ['D','4'] %}selected{% endif %}>D (4)</option>
+                <option value="0"  {% if course.grade in ['F','0'] %}selected{% endif %}>F (0)</option>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </form>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-book"/></svg></div>
+      <h4>No enrollments to simulate</h4>
+      <p>Once you're enrolled in courses, you can preview CGPA changes here.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# How-it-works + reset #}
+  <div class="card" style="position:sticky; top: calc(var(--topbar-h) + var(--sp-4));">
+    <div class="card-header">
+      <h3>How this works</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted text-sm">
+        We compute a credit-weighted average across every course in your record using the
+        grade points you select on the left. Letter grades map to a 10-point scale
+        (A/A+ = 10, B+ = 9, B = 8, …, F = 0).
+      </p>
+      <p class="text-muted text-sm mt-3">
+        This is a what-if tool only; nothing here is saved to your transcript.
+      </p>
+      <button type="button" class="btn btn-secondary btn-block mt-4" onclick="resetToDefaults()">
+        <svg class="icon"><use href="#i-arrow-right"/></svg> Reset to actual grades
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block body_end %}
 <script>
-    const CURRENT_CGPA = {{ current_cgpa }};
-    const form = document.getElementById('simulatorForm');
-    const gradeSelects = document.querySelectorAll('.grade-select');
-    const simCgpaEl = document.getElementById('simCgpa');
-    const impactBadge = document.getElementById('impactBadge');
+  const CURRENT_CGPA = {{ current_cgpa or 0 }};
+  const gradeSelects = document.querySelectorAll('.grade-select');
+  const simCgpaEl  = document.getElementById('simCgpa');
+  const deltaValue = document.getElementById('deltaValue');
+  const deltaHint  = document.getElementById('deltaHint');
+  const kpiDelta   = document.getElementById('kpiDelta');
 
-    function calculate() {
-        let totalPoints = 0;
-        let totalCredits = 0;
-
-        gradeSelects.forEach(select => {
-            const row = select.closest('.course-input');
-            const credits = parseFloat(row.dataset.credits);
-            const gradePoint = parseFloat(select.value);
-
-            totalPoints += (gradePoint * credits);
-            totalCredits += credits;
-        });
-
-        // Calculate Projected CGPA
-        const projectedCgpa = totalCredits > 0 ? (totalPoints / totalCredits) : 0;
-
-        // Update UI
-        simCgpaEl.textContent = projectedCgpa.toFixed(2);
-
-        // Update Impact Badge
-        const diff = projectedCgpa - CURRENT_CGPA;
-        if (diff > 0.01) {
-            impactBadge.className = 'badge approved mt-3';
-            impactBadge.textContent = `▲ +${diff.toFixed(2)} Increase`;
-        } else if (diff < -0.01) {
-            impactBadge.className = 'badge rejected mt-3';
-            impactBadge.textContent = `▼ ${diff.toFixed(2)} Decrease`;
-        } else {
-            impactBadge.className = 'badge pending mt-3';
-            impactBadge.textContent = 'No Change';
-        }
-    }
-
-    function resetToDefaults() {
-        // This relies on the server-rendered 'selected' attributes
-        // However, since user changed values, we might need to reload or store formatted initial values.
-        // A simple reload is easiest for this "Reset" button given the template structure.
-        window.location.reload();
-    }
-
-    // Attach listeners
+  function calculate() {
+    let totalPoints = 0, totalCredits = 0;
     gradeSelects.forEach(select => {
-        select.addEventListener('change', calculate);
+      const row = select.closest('.course-input');
+      const credits = parseFloat(row.dataset.credits) || 0;
+      const gradePoint = parseFloat(select.value) || 0;
+      totalPoints += gradePoint * credits;
+      totalCredits += credits;
     });
+    const projected = totalCredits > 0 ? (totalPoints / totalCredits) : 0;
+    simCgpaEl.textContent = projected.toFixed(2);
 
-    // Initial run
-    calculate();
-
+    const diff = projected - CURRENT_CGPA;
+    kpiDelta.classList.remove('kpi-success', 'kpi-warning', 'kpi-danger');
+    if (Math.abs(diff) < 0.005) {
+      deltaValue.textContent = '0.00';
+      deltaHint.textContent = 'no change';
+    } else if (diff > 0) {
+      deltaValue.textContent = '+' + diff.toFixed(2);
+      deltaHint.textContent = 'higher than current';
+      kpiDelta.classList.add('kpi-success');
+    } else {
+      deltaValue.textContent = diff.toFixed(2);
+      deltaHint.textContent = 'lower than current';
+      kpiDelta.classList.add('kpi-danger');
+    }
+  }
+  function resetToDefaults() { window.location.reload(); }
+  gradeSelects.forEach(s => s.addEventListener('change', calculate));
+  calculate();
 </script>
-
-<style>
-    .sticky-top {
-        position: sticky;
-        top: 20px;
-    }
-
-    .grade-select {
-        width: 100%;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        background-color: white;
-        cursor: pointer;
-        transition: border-color 0.2s;
-    }
-
-    .grade-select:hover {
-        border-color: var(--primary);
-    }
-</style>
 {% endblock %}
