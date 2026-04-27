@@ -1,0 +1,56 @@
+{# Topbar with mobile menu toggle, breadcrumb, notifications bell, user chip + dropdown. #}
+<header class="topbar">
+  <div class="topbar-left">
+    <button type="button" class="topbar-action menu-toggle" aria-label="Toggle navigation">
+      <svg class="icon"><use href="#i-menu"/></svg>
+    </button>
+
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">ERP</a>
+      <span class="sep">/</span>
+      <span class="current">{% block breadcrumb %}{% endblock %}</span>
+    </nav>
+  </div>
+
+  <div class="topbar-actions">
+    <a href="{{ url_for('notifications') }}" class="topbar-action" aria-label="Notifications">
+      <svg class="icon"><use href="#i-bell"/></svg>
+      {% if unread_notifications and unread_notifications > 0 %}
+        <span class="dot">{{ unread_notifications if unread_notifications < 100 else '99+' }}</span>
+      {% endif %}
+    </a>
+
+    <div class="has-menu">
+      <button type="button" class="user-chip" aria-haspopup="true">
+        <span class="avatar">
+          {% if session.get('role') %}{{ session.get('role')[0]|upper }}{% else %}?{% endif %}
+        </span>
+        <span class="meta">
+          <span class="role-tag">{{ session.get('role')|default('Guest') }}</span>
+        </span>
+      </button>
+      <div class="menu" role="menu">
+        <div class="menu-label">Account</div>
+        <a href="{{ url_for('change_password') }}">
+          <svg class="icon" width="16" height="16"><use href="#i-shield"/></svg>
+          Change password
+        </a>
+        {% if session.get('role') == 'student' %}
+        <a href="{{ url_for('student_profile') }}">
+          <svg class="icon" width="16" height="16"><use href="#i-user"/></svg>
+          My profile
+        </a>
+        <a href="{{ url_for('student_export') }}">
+          <svg class="icon" width="16" height="16"><use href="#i-download"/></svg>
+          Download my data
+        </a>
+        {% endif %}
+        <hr>
+        <a href="{{ url_for('logout') }}">
+          <svg class="icon" width="16" height="16"><use href="#i-logout"/></svg>
+          Sign out
+        </a>
+      </div>
+    </div>
+  </div>
+</header>

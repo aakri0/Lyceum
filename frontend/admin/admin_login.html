@@ -1,27 +1,33 @@
 {% extends "base.html" %}
+{% block title %}Admin Login{% endblock %}
 {% block content %}
 <div class="auth-wrapper">
-    <div class="card auth-card">
-        <h2 class="text-center mb-4">Admin Login</h2>
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="email" placeholder="Enter admin email" required>
-            </div>
+  <div class="auth-card">
+    <h2>Administrator sign-in</h2>
+    <p class="subtitle">Restricted access. All actions are audit-logged.</p>
 
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Enter password" required>
-            </div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="admin@college.edu" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-block btn-lg">
+        Continue <svg class="icon"><use href="#i-check"/></svg>
+      </button>
+    </form>
 
-            <button type="submit" class="btn btn-primary">Login</button>
-
-            <div class="resend mt-4 text-center">
-                <span class="text-muted">Trouble logging in?</span>
-                <a href="{{ url_for('forgot_password') }}">Reset password</a>
-            </div>
-        </form>
+    <div class="auth-footer">
+      <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+      <span class="text-subtle">·</span>
+      <a href="{{ url_for('student_login') }}">Student</a>
+      <span class="text-subtle">·</span>
+      <a href="{{ url_for('faculty_login') }}">Faculty</a>
     </div>
+  </div>
 </div>
 {% endblock %}

@@ -1,128 +1,141 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
 {% block content %}
-<h2 class="mb-4">Student Dashboard</h2>
-
-{# Announcements (B3) #}
-{% if announcements %}
-<div class="card mb-4" style="border-left:4px solid #2563eb;">
-  <h3 class="card-title" style="margin-bottom:0.5rem;">📣 Announcements</h3>
-  <ul class="list-unstyled" style="margin:0;">
-    {% for a in announcements[:5] %}
-    <li style="padding:0.6rem 0;border-bottom:1px solid #e2e8f0;">
-      {% if a.pinned %}<span title="pinned">📌</span>{% endif %}
-      <strong>{{ a.title }}</strong>
-      <small class="text-muted">· {{ a.poster_name }} · {{ a.created_at }}</small>
-      <p style="margin:0.2rem 0 0 0;color:#475569;">{{ a.body[:200] }}{% if a.body|length > 200 %}…{% endif %}</p>
-    </li>
-    {% endfor %}
-  </ul>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Dashboard</h1>
+    <div class="subtitle">Your academic snapshot, at a glance.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('new_request') }}" class="btn">
+      <svg class="icon"><use href="#i-plus"/></svg> New Request
+    </a>
+    <a href="{{ url_for('grade_simulator') }}" class="btn btn-secondary">
+      <svg class="icon"><use href="#i-chart"/></svg> Grade Simulator
+    </a>
+  </div>
 </div>
+
+{# ===== KPI tiles ===== #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-chart"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Cumulative CGPA</span>
+      <span class="kpi-value">{{ cumulative_cgpa if cumulative_cgpa else '—' }}</span>
+      <span class="kpi-meta">across all graded semesters</span>
+    </div>
+  </div>
+  <div class="kpi {% if overall_attendance is not none and overall_attendance < 75 %}kpi-warning{% else %}kpi-success{% endif %}">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-checkbox"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Overall Attendance</span>
+      <span class="kpi-value">{{ overall_attendance ~ '%' if overall_attendance is not none else '—' }}</span>
+      <span class="kpi-meta">
+        {% if overall_attendance is not none and overall_attendance < 75 %}
+          Below 75% threshold — <a href="{{ url_for('student_attendance') }}">view details</a>
+        {% else %}
+          across all current sections
+        {% endif %}
+      </span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-book"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Enrolled Courses</span>
+      <span class="kpi-value">{{ enrolled_count }}</span>
+      <span class="kpi-meta"><a href="{{ url_for('student_courses') }}">View list</a></span>
+    </div>
+  </div>
+  <div class="kpi {% if pending_requests > 0 %}kpi-warning{% endif %}">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Pending Requests</span>
+      <span class="kpi-value">{{ pending_requests }}</span>
+      <span class="kpi-meta"><a href="{{ url_for('student_requests') }}">Manage</a></span>
+    </div>
+  </div>
+</div>
+
+{# ===== 2-column layout: announcements + GPA chart ===== #}
+<div class="d-grid" style="grid-template-columns: 1fr 1fr;">
+  <div class="card">
+    <div class="card-header">
+      <h3><svg class="icon" style="vertical-align:-3px;"><use href="#i-megaphone"/></svg> Announcements</h3>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if announcements %}
+        {% for a in announcements[:5] %}
+        <div style="padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border);">
+          <div class="d-flex" style="justify-content:space-between; align-items:flex-start;">
+            <strong>{% if a.pinned %}<span class="tag" style="margin-right:6px;">Pinned</span>{% endif %}{{ a.title }}</strong>
+            <small class="text-subtle">{{ a.created_at }}</small>
+          </div>
+          <p class="text-muted text-sm mt-1" style="margin-bottom:0;">
+            {{ a.body[:160] }}{% if a.body|length > 160 %}…{% endif %}
+          </p>
+          <small class="text-subtle">— {{ a.poster_name }}</small>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-megaphone"/></svg></div>
+        <h4>No announcements</h4>
+        <p>You're all caught up.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3><svg class="icon" style="vertical-align:-3px;"><use href="#i-chart"/></svg> CGPA Trend</h3>
+      <a href="{{ url_for('student_progress') }}" class="text-sm">Details &rarr;</a>
+    </div>
+    <div class="card-body">
+      {% if mini_graph_data %}
+        <div class="chart-wrap"><canvas id="miniCgpaChart"></canvas></div>
+      {% else %}
+      <div class="empty-state" style="padding: var(--sp-8) var(--sp-4);">
+        <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-chart"/></svg></div>
+        <h4>No grades yet</h4>
+        <p>Your CGPA will appear once your first courses are graded.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block body_end %}
+{% if mini_graph_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const miniCtx = document.getElementById('miniCgpaChart').getContext('2d');
+  const miniData = {{ mini_graph_data | tojson }};
+  new Chart(miniCtx, {
+    type: 'line',
+    data: {
+      labels: miniData.map(d => 'Sem ' + d.semester),
+      datasets: [{
+        label: 'CGPA', data: miniData.map(d => d.gpa),
+        borderColor: '#4f46e5', backgroundColor: 'rgba(99, 102, 241, 0.12)',
+        borderWidth: 2, fill: true, tension: 0.35,
+        pointRadius: 4, pointHoverRadius: 6,
+        pointBackgroundColor: '#4f46e5', pointBorderColor: '#fff', pointBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 }, grid: { color: 'rgba(15,23,42,0.06)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+</script>
 {% endif %}
-
-<div class="dashboard-grid">
-  <div class="card">
-    <h3 class="card-title">My Profile</h3>
-    <p class="text-muted mb-4">View and edit your personal details.</p>
-    <a href="{{ url_for('student_profile') }}" class="btn">View Profile</a>
-  </div>
-
-  <div class="card">
-    <h3 class="card-title">My Courses</h3>
-    <p class="text-muted mb-4">Check your enrolled courses and grades.</p>
-    <a href="{{ url_for('student_courses') }}" class="btn">View Courses</a>
-  </div>
-
-  <div class="card">
-    <h3 class="card-title">Requests</h3>
-    <p class="text-muted mb-4">Submit and track your administrative requests.</p>
-    <a href="{{ url_for('student_requests') }}" class="btn">Manage Requests</a>
-  </div>
-
-  <div class="card">
-    <h3 class="card-title">Grade Simulator</h3>
-    <p class="mb-4 text-muted">Project your semester grades and see "What-If" scenarios.</p>
-    <a href="{{ url_for('grade_simulator') }}" class="btn">Simulate Grades</a>
-  </div>
-
-  <!-- Academic Progress Card -->
-  <div class="card" style="grid-column: span 2;">
-    <div class="d-flex justify-between mb-4" style="align-items: center;">
-      <h3 class="card-title" style="margin: 0;">Academic Progress</h3>
-      <a href="{{ url_for('student_progress') }}"
-        style="color: var(--primary); text-decoration: none; font-size: 0.9em;">View Details →</a>
-    </div>
-
-    {% if cumulative_cgpa %}
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: center;">
-      <!-- CGPA Display -->
-      <div
-        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 12px; text-align: center;">
-        <p style="margin: 0; color: white; opacity: 0.9; font-size: 0.9em;">Cumulative CGPA</p>
-        <p style="margin: 0.5rem 0 0 0; color: white; font-size: 3em; font-weight: 700;">{{ cumulative_cgpa }}</p>
-      </div>
-
-      <!-- Mini Graph -->
-      <div>
-        <canvas id="miniCgpaChart" style="max-height: 150px;"></canvas>
-      </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-      const miniCtx = document.getElementById('miniCgpaChart').getContext('2d');
-      const miniData = {{ mini_graph_data | tojson }};
-
-      new Chart(miniCtx, {
-        type: 'line',
-        data: {
-          labels: miniData.map(d => `S${d.semester}`),
-          datasets: [{
-            label: 'CGPA',
-            data: miniData.map(d => d.gpa),
-            borderColor: '#667eea',
-            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#667eea',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              padding: 8,
-              titleFont: { size: 12 },
-              bodyFont: { size: 11 }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 10,
-              ticks: { stepSize: 2, font: { size: 10 } },
-              grid: { color: 'rgba(0, 0, 0, 0.05)' }
-            },
-            x: {
-              ticks: { font: { size: 10 } },
-              grid: { display: false }
-            }
-          }
-        }
-      });
-    </script>
-    {% else %}
-    <div class="alert info text-center">
-      <p style="margin: 0;">No academic data available yet. Your CGPA will appear here once courses are graded.</p>
-    </div>
-    {% endif %}
-  </div>
-</div>
 {% endblock %}

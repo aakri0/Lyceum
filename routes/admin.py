@@ -124,7 +124,28 @@ def admin_login():
 def admin_dashboard():
     if 'user_id' not in session:
         return redirect(url_for('admin_login'))
-    return render_template('admin/admin_dashboard.html')
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT COUNT(*) AS c FROM students");  students = cur.fetchone()['c']
+    cur.execute("SELECT COUNT(*) AS c FROM faculty");   faculty  = cur.fetchone()['c']
+    cur.execute("SELECT COUNT(*) AS c FROM departments"); depts  = cur.fetchone()['c']
+    cur.execute("SELECT COUNT(*) AS c FROM courses");   courses  = cur.fetchone()['c']
+    cur.execute("SELECT COUNT(*) AS c FROM swd_requests WHERE status='pending'");
+    pending = cur.fetchone()['c']
+    cur.execute("""
+        SELECT a.action, a.created_at, u.email
+        FROM audit_logs a JOIN users u ON a.user_id=u.user_id
+        ORDER BY a.created_at DESC LIMIT 8
+    """)
+    recent_activity = cur.fetchall()
+    conn.close()
+
+    return render_template(
+        'admin/admin_dashboard.html',
+        students=students, faculty=faculty, depts=depts,
+        courses=courses, pending=pending, recent_activity=recent_activity,
+    )
 
 @app.route('/admin_analytics')
 def admin_analytics():

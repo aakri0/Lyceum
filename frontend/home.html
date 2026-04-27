@@ -1,54 +1,68 @@
 {% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+
 {% block content %}
-<div class="container" style="min-height: 80vh; display: flex; align-items: center;">
-    <!-- Grid defaults to 'stretch' alignment, ensuring equal height for direct children -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 4rem; width: 100%;">
+<section class="hero">
+  <h1>Run your college on a single platform.</h1>
+  <p>
+    Role-based portals for students, faculty, and administrators —
+    grades, attendance, course materials, requests, and bonafide
+    certificates, all in one place.
+  </p>
+  <div class="cta-row">
+    <a href="{{ url_for('student_login') }}" class="btn">
+      <svg class="icon"><use href="#i-graduation"/></svg> I'm a Student
+    </a>
+    <a href="{{ url_for('faculty_login') }}" class="btn btn-secondary">
+      <svg class="icon"><use href="#i-book"/></svg> I'm Faculty
+    </a>
+    <a href="{{ url_for('admin_login') }}" class="btn btn-ghost">
+      <svg class="icon"><use href="#i-shield"/></svg> Admin
+    </a>
+  </div>
+</section>
 
-        <!-- Left Side: Branding (Unified Hero) -->
-        <!-- Direct grid child to ensure stretching -->
-        <div class="p-5 text-center"
-            style="background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%); border-radius: 2rem; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-            <div class="mb-4">
-                <img src="{{ url_for('static', filename='icons/logo2.png') }}" alt="College ERP Logo"
-                    style="height: 80px; width: auto;">
-            </div>
+<h6 class="text-center mt-5 mb-4">Built for the way colleges actually run</h6>
 
-            <h1
-                style="font-size: 3rem; font-weight: 800; margin-bottom: 1rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                College ERP System</h1>
-
-            <p class="text-muted" style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 0;">
-                Seamlessly manage your academic journey, faculty resources, and administrative operations in one unified
-                platform.
-            </p>
-        </div>
-
-        <!-- Right Side: Login Options -->
-        <div class="card shadow-lg"
-            style="border-radius: 2rem; padding: 3rem; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-            <h2 class="text-center mb-5" style="font-weight: 600;">Login Portal</h2>
-
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <a href="{{ url_for('student_login') }}" class="btn"
-                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>Student Login</span>
-                    <span>&rarr;</span>
-                </a>
-
-                <a href="{{ url_for('faculty_login') }}" class="btn"
-                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; background-color: var(--info);">
-                    <span>Faculty Login</span>
-                    <span>&rarr;</span>
-                </a>
-
-                <a href="{{ url_for('admin_login') }}" class="btn btn-secondary"
-                    style="padding: 1.25rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>Admin Login</span>
-                    <span>&rarr;</span>
-                </a>
-            </div>
-        </div>
-
+<div class="role-grid">
+  <div class="role-card">
+    <div class="icon-bubble">
+      <svg class="icon" width="24" height="24"><use href="#i-graduation"/></svg>
     </div>
+    <h3>Students</h3>
+    <p class="text-muted">CGPA &amp; per-semester GPA, grade simulator, attendance with low-attendance warnings, course materials, request tracking.</p>
+  </div>
+  <div class="role-card">
+    <div class="icon-bubble">
+      <svg class="icon" width="24" height="24"><use href="#i-book"/></svg>
+    </div>
+    <h3>Faculty</h3>
+    <p class="text-muted">Section-allotted course management, bulk grade entry, daily attendance, materials upload, SWD request review.</p>
+  </div>
+  <div class="role-card">
+    <div class="icon-bubble">
+      <svg class="icon" width="24" height="24"><use href="#i-shield"/></svg>
+    </div>
+    <h3>Administrators</h3>
+    <p class="text-muted">User &amp; department management, course-faculty allotment, analytics, bulk semester promotion, audit logs, bonafide PDFs.</p>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card-body text-center" style="padding: var(--sp-8);">
+    <h3 class="mb-2">Security defaults that match commercial ERPs</h3>
+    <p class="text-muted mb-4" style="max-width:600px; margin-left:auto; margin-right:auto;">
+      OTP-secured login, bcrypt-12 password hashing, CSRF on every form, rate limiting + account lockout,
+      role-based access guards, audit logs on every state change, and security headers on every response.
+    </p>
+    <div class="d-flex" style="justify-content:center; flex-wrap:wrap;">
+      <span class="tag">Email OTP</span>
+      <span class="tag">CSRF</span>
+      <span class="tag">Rate-limited</span>
+      <span class="tag">Audit logged</span>
+      <span class="tag">Bcrypt-12</span>
+      <span class="tag">Account lockout</span>
+    </div>
+  </div>
 </div>
 {% endblock %}

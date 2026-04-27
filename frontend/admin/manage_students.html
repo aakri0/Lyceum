@@ -1,21 +1,33 @@
 {% extends "base.html" %}
+{% block title %}Manage Students{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-between align-items-center mb-4">
-        <h2>Manage Students</h2>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
-            style="width: auto; padding: 0.5rem 1rem;">Back to Dashboard</a>
-    </div>
 
-    {# Search + filters (A2) #}
-    <form method="GET" class="d-flex gap-2 mb-3" style="flex-wrap:wrap;align-items:end;">
-      <div style="flex:2;min-width:220px;">
-        <label class="text-muted small mb-1">Search (name / email / roll no)</label>
-        <input type="text" name="q" value="{{ q or '' }}" class="form-control">
+<div class="page-header">
+  <div class="title-block">
+    <h1>Students</h1>
+    <div class="subtitle">Search, edit, and bulk-promote students.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('admin_create_user') }}" class="btn">
+      <svg class="icon"><use href="#i-plus"/></svg> Add Student
+    </a>
+  </div>
+</div>
+
+{# Search + filters (A2) #}
+<form method="GET" class="card mb-4">
+  <div class="card-body">
+    <div class="form-row">
+      <div>
+        <label>Search</label>
+        <div class="input-group">
+          <span class="icon-prefix"><svg class="icon" width="14" height="14"><use href="#i-search"/></svg></span>
+          <input type="text" name="q" value="{{ q or '' }}" placeholder="Name, email or roll no…">
+        </div>
       </div>
-      <div style="flex:1;min-width:160px;">
-        <label class="text-muted small mb-1">Department</label>
-        <select name="dept_id" class="form-control">
+      <div>
+        <label>Department</label>
+        <select name="dept_id">
           <option value="">All departments</option>
           {% for d in departments %}
           <option value="{{ d.dept_id }}" {% if dept_id_filter == d.dept_id %}selected{% endif %}>
@@ -24,125 +36,134 @@
           {% endfor %}
         </select>
       </div>
-      <div style="flex:0 0 110px;">
-        <label class="text-muted small mb-1">Year</label>
-        <select name="year" class="form-control">
-          <option value="">All</option>
+      <div>
+        <label>Year</label>
+        <select name="year">
+          <option value="">All years</option>
           {% for y in range(1, 5) %}
           <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
           {% endfor %}
         </select>
       </div>
-      <button type="submit" class="btn btn-primary" style="height:38px;width:auto;padding:0 1rem;">Filter</button>
-      <a href="{{ url_for('admin_manage_students') }}" class="btn btn-secondary"
-         style="height:38px;width:auto;padding:0 1rem;line-height:38px;">Clear</a>
+      <div class="d-flex align-end gap-2" style="padding-top:24px;">
+        <button type="submit" class="btn">
+          <svg class="icon"><use href="#i-search"/></svg> Filter
+        </button>
+        <a href="{{ url_for('admin_manage_students') }}" class="btn btn-ghost">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+{# Bulk promote — destructive, gated with typed confirmation. #}
+<div class="card mb-4" style="border-left: 3px solid var(--warning-500);">
+  <div class="card-body">
+    <h3 class="mb-2"><svg class="icon" style="vertical-align:-3px;"><use href="#i-graduation"/></svg> Bulk Semester Promotion</h3>
+    <p class="text-muted text-sm mb-4">Affects every student currently in the source semester across the whole institution.</p>
+    <form action="{{ url_for('admin_bulk_promote') }}" method="POST"
+          class="d-flex align-end gap-3" style="flex-wrap:wrap;"
+          onsubmit="return confirm('Promote ALL students from the selected semester to the target semester? This cannot be undone in one click.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex:1; min-width:160px;">
+        <label>From semester</label>
+        <select name="from_semester" required>
+          <option value="" disabled selected>Select…</option>
+          {% for i in range(1, 9) %}<option value="{{ i }}">Semester {{ i }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="padding-bottom:10px; color:var(--text-muted);">→</div>
+      <div style="flex:1; min-width:160px;">
+        <label>To semester</label>
+        <select name="to_semester" required>
+          <option value="" disabled selected>Select…</option>
+          {% for i in range(1, 9) %}<option value="{{ i }}">Semester {{ i }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-warning">
+        Promote batch
+      </button>
     </form>
-
-    <div class="card mb-4 shadow-sm" style="border-left: 5px solid var(--primary);">
-        <div class="card-body">
-            <h5 class="card-title text-primary mb-3">🎓 Bulk Semester Promotion</h5>
-            <form action="{{ url_for('admin_bulk_promote') }}" method="POST" class="d-flex align-items-end gap-3"
-                onsubmit="return confirm('WARNING: This will promote ALL students from the selected semester to the target semester. This action affects the entire database. Are you sure?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="flex: 1;">
-                    <label class="text-muted small mb-1">Promote students from:</label>
-                    <select name="from_semester" class="form-control" required>
-                        <option value="" disabled selected>Select Current Semester</option>
-                        {% for i in range(1, 9) %}
-                        <option value="{{ i }}">Semester {{ i }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="padding-bottom: 0.5rem; color: var(--text-muted);">
-                    ➔
-                </div>
-                <div style="flex: 1;">
-                    <label class="text-muted small mb-1">To new semester:</label>
-                    <select name="to_semester" class="form-control" required>
-                        <option value="" disabled selected>Select New Semester</option>
-                        {% for i in range(1, 9) %}
-                        <option value="{{ i }}">Semester {{ i }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary" style="height: 38px;">Promote Batch</button>
-            </form>
-        </div>
-    </div>
-
-    {% if not structured_data %}
-    <div class="alert alert-info">No students found in the database.</div>
-    {% else %}
-    {% for dept_name, years in structured_data.items() %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0" style="font-size: 1.25rem;">{{ dept_name }}</h4>
-        </div>
-        <div class="card-body">
-            {% for year, students in years.items() %}
-            <h5 class="mt-3 mb-2 text-secondary border-bottom pb-2">{{ year | ordinal_year }} Students</h5>
-            <div class="table-responsive mb-4">
-                <table class="table table-bordered table-hover">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>Roll No</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Semester</th>
-                            <th style="width: 300px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in students %}
-                        <tr>
-                            <td>{{ student.roll_no }}</td>
-                            <td>{{ student.name }}</td>
-                            <td>{{ student.email }}</td>
-                            <td><span class="badge" style="background: #e2e8f0; color: #475569;">Sem {{
-                                    student.current_semester or '-' }}</span></td>
-                            <td>
-                                <div style="display: flex; gap: 0.5rem; align-items: center;">
-
-                                    <form action="{{ url_for('admin_update_semester', student_id=student.student_id) }}"
-                                        method="POST" style="display: flex; gap: 0.25rem;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <select name="semester" class="form-control"
-                                            style="width: 70px; padding: 0.25rem; font-size: 0.9rem; height: auto;">
-                                            {% for i in range(1, 9) %}
-                                            <option value="{{ i }}" {% if student.current_semester==i %}selected{% endif
-                                                %}>{{ i }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="submit" class="btn btn-secondary" title="Update Semester"
-                                            style="width: auto; padding: 0.25rem 0.6rem; font-size: 0.9rem;">
-                                            ✓
-                                        </button>
-                                    </form>
-
-                                    <a href="{{ url_for('admin_edit_student', student_id=student.student_id) }}"
-                                        class="btn btn-warning"
-                                        style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Edit</a>
-
-                                    <form action="{{ url_for('admin_delete_student', student_id=student.student_id) }}"
-                                        method="POST" style="display:inline;"
-                                        onsubmit="return confirm('Are you sure you want to delete this student? This will permanently remove their account and all records.');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-danger"
-                                            style="width: auto; padding: 0.25rem 1rem; font-size: 0.9rem;">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endfor %}
-    {% endif %}
-
-    {% include 'partials/pagination.html' %}
+  </div>
 </div>
+
+{% if not structured_data %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-users"/></svg></div>
+    <h4>No students match the filter</h4>
+    <p>Try clearing the filters or creating a new user.</p>
+  </div>
+</div>
+{% else %}
+{% for dept_name, years in structured_data.items() %}
+<div class="card mb-4 flush">
+  <div class="card-header">
+    <h3>{{ dept_name }}</h3>
+  </div>
+  {% for year, students in years.items() %}
+  <div class="section-title" style="padding: 0 var(--sp-5); margin: var(--sp-4) 0 var(--sp-2);">
+    {{ year | ordinal_year }} students · {{ students|length }}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Roll No</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Sem</th>
+        <th style="width:1%; white-space:nowrap;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students %}
+      <tr>
+        <td class="font-mono">{{ student.roll_no }}</td>
+        <td>
+          <div class="d-flex">
+            <div class="avatar-md" style="width:30px; height:30px; font-size:var(--fs-xs); background: var(--brand-50); color: var(--brand-700);">
+              {{ student.name[0]|upper }}
+            </div>
+            <span class="fw-600">{{ student.name }}</span>
+          </div>
+        </td>
+        <td><span class="text-muted">{{ student.email }}</span></td>
+        <td><span class="tag">Sem {{ student.current_semester or '—' }}</span></td>
+        <td>
+          <div class="d-flex" style="gap: var(--sp-1); flex-wrap:wrap;">
+            <form action="{{ url_for('admin_update_semester', student_id=student.student_id) }}"
+                  method="POST" style="display:flex; gap:4px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <select name="semester" style="width:70px; padding:4px;">
+                {% for i in range(1, 9) %}
+                <option value="{{ i }}" {% if student.current_semester==i %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-secondary btn-sm" title="Update semester">
+                <svg class="icon"><use href="#i-check"/></svg>
+              </button>
+            </form>
+            <a href="{{ url_for('admin_edit_student', student_id=student.student_id) }}"
+               class="btn btn-secondary btn-sm">
+              <svg class="icon"><use href="#i-edit"/></svg> Edit
+            </a>
+            <form action="{{ url_for('admin_delete_student', student_id=student.student_id) }}"
+                  method="POST" style="display:inline;"
+                  onsubmit="return confirm('Permanently delete this student?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm">
+                <svg class="icon"><use href="#i-trash"/></svg>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% include 'partials/pagination.html' %}
 {% endblock %}

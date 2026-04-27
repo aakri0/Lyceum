@@ -1,36 +1,50 @@
 {% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-between mb-4">
-    <h2 style="margin-bottom:0;">Notifications</h2>
-    <a href="javascript:history.back()" class="btn btn-secondary"
-       style="width:auto;padding:0.5rem 1rem;">Back</a>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Notifications</h1>
+    <div class="subtitle">Latest activity from your courses, requests, and announcements.</div>
   </div>
-
-  {% if not items %}
-  <div class="alert alert-info">No notifications yet.</div>
-  {% else %}
-  <ul class="list-unstyled">
-    {% for n in items %}
-    <li class="card mb-2"
-        style="border-left:4px solid {{ '#94a3b8' if n.read_at else '#2563eb' }};">
-      <div class="card-body" style="padding:0.8rem 1rem;">
-        <div class="d-flex justify-between align-items-start">
-          <div>
-            <small class="text-muted">{{ n.kind }} · {{ n.created_at }}</small>
-            <p style="margin:0.3rem 0;">{{ n.message }}</p>
-            {% if n.link %}
-            <a href="{{ n.link }}" style="font-size:0.9rem;">Open &rarr;</a>
-            {% endif %}
-          </div>
-          {% if not n.read_at %}
-          <span class="badge" style="background:#2563eb;color:white;">new</span>
-          {% endif %}
-        </div>
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
 </div>
+
+{% if not items %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-bell"/></svg></div>
+    <h4>You're all caught up</h4>
+    <p>Notifications about grades, requests, and announcements will appear here.</p>
+  </div>
+</div>
+{% else %}
+<div class="card flush">
+  {% for n in items %}
+  <div style="padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); display:flex; gap: var(--sp-3); align-items:flex-start; {% if not n.read_at %}background: var(--brand-50);{% endif %}">
+    <div class="kpi-icon" style="width:36px; height:36px; flex-shrink:0;">
+      <svg class="icon" width="18" height="18">
+        <use href="#i-{{
+          {'grade_posted':'chart',
+           'request_status':'clipboard',
+           'request_assigned':'clipboard',
+           'request_comment':'megaphone'}.get(n.kind,'bell')
+        }}"/>
+      </svg>
+    </div>
+    <div style="flex:1; min-width:0;">
+      <div class="d-flex" style="justify-content:space-between; align-items:flex-start;">
+        <span class="text-muted text-xs" style="text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
+          {{ n.kind|replace('_', ' ') }}
+        </span>
+        <small class="text-subtle">{{ n.created_at }}</small>
+      </div>
+      <p style="margin: 4px 0 0;">{{ n.message }}</p>
+      {% if n.link %}
+      <a href="{{ n.link }}" class="text-sm">Open &rarr;</a>
+      {% endif %}
+    </div>
+    {% if not n.read_at %}<span class="badge info no-dot" style="flex-shrink:0;">new</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

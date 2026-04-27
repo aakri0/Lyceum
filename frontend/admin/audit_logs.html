@@ -1,20 +1,50 @@
 {% extends "base.html" %}
+{% block title %}Audit Logs{% endblock %}
 {% block content %}
 
-<h2>Audit Logs</h2>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Audit Logs</h1>
+    <div class="subtitle">Every state-changing admin/faculty action with IP and user-agent.</div>
+  </div>
+</div>
 
-<table>
-<tr><th>User</th><th>Action</th><th>IP</th><th>User-Agent</th><th>Time</th></tr>
-{% for log in logs %}
-<tr>
-  <td>{{ log.email }}</td>
-  <td>{{ log.action }}</td>
-  <td>{{ log.ip_address or '' }}</td>
-  <td title="{{ log.user_agent or '' }}">{{ (log.user_agent or '')[:40] }}</td>
-  <td>{{ log.created_at }}</td>
-</tr>
-{% endfor %}
-</table>
+{% if not logs %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-shield"/></svg></div>
+    <h4>No activity yet</h4>
+    <p>Audit entries appear here as users perform state-changing actions.</p>
+  </div>
+</div>
+{% else %}
+<div class="table-wrap">
+  <table class="table-compact">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Action</th>
+        <th>IP</th>
+        <th>User-Agent</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td><span class="text-muted">{{ log.email }}</span></td>
+        <td>{{ log.action }}</td>
+        <td><span class="font-mono text-xs">{{ log.ip_address or '—' }}</span></td>
+        <td title="{{ log.user_agent or '' }}" class="text-xs text-muted">
+          {{ (log.user_agent or '—')[:40] }}{% if log.user_agent and log.user_agent|length > 40 %}…{% endif %}
+        </td>
+        <td><small class="text-muted">{{ log.created_at }}</small></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 {% include 'partials/pagination.html' %}
 

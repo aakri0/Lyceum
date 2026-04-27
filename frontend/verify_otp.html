@@ -1,31 +1,34 @@
 {% extends "base.html" %}
-
+{% block title %}Verify OTP{% endblock %}
 {% block content %}
 <div class="auth-wrapper">
-  <div class="card auth-card text-center">
-    <div style="margin-bottom: 2rem;">
-      <h2 class="mb-2">OTP Verification</h2>
-      <p class="text-muted">
-        Please enter the 6-digit code sent to your email.<br>
-        <span style="font-size: 0.9em; opacity: 0.8;">Valid for 5 minutes.</span>
-      </p>
-    </div>
+  <div class="auth-card">
+    <h2>Two-factor verification</h2>
+    <p class="subtitle">Enter the 6-digit code we just emailed you. Valid for 5 minutes.</p>
 
     <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
-        <input type="text" name="otp" placeholder="0 0 0 0 0 0" required maxlength="6" autofocus
-          style="text-align: center; letter-spacing: 0.5rem; font-size: 1.5rem; font-weight: 600; padding: 1rem;">
+        <label>One-time code</label>
+        <input type="text"
+               name="otp"
+               inputmode="numeric"
+               pattern="[0-9]{6}"
+               placeholder="••••••"
+               maxlength="6"
+               autocomplete="one-time-code"
+               autofocus
+               required
+               style="text-align:center; letter-spacing:0.6rem; font-size:1.5rem; font-weight:600; font-family: var(--font-mono); padding: 14px;">
       </div>
-
-      <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
-        Verify Code
+      <button type="submit" class="btn btn-block btn-lg">
+        Verify <svg class="icon"><use href="#i-check"/></svg>
       </button>
     </form>
 
-    <div class="mt-4">
-      <span class="text-muted">Didn't receive code?</span>
-      <a href="{{ url_for('resend_otp') }}" style="font-weight: 600; margin-left: 0.5rem;">Resend OTP</a>
+    <div class="auth-footer">
+      Didn't receive a code?
+      <a href="{{ url_for('resend_otp') }}">Resend OTP</a>
     </div>
   </div>
 </div>

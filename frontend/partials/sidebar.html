@@ -1,0 +1,85 @@
+{# Sidebar — role-grouped navigation with active-link detection.
+   Active state: compares request.endpoint against each link's endpoint. #}
+{% set ep = request.endpoint or '' %}
+{% macro link(endpoint, icon, label, args={}, badge=None) %}
+  <a href="{{ url_for(endpoint, **args) }}"
+     class="sidebar-link {% if ep == endpoint %}active{% endif %}">
+    <svg class="icon"><use href="#i-{{ icon }}"/></svg>
+    <span>{{ label }}</span>
+    {% if badge %}<span class="badge-pill">{{ badge }}</span>{% endif %}
+  </a>
+{% endmacro %}
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-mark">
+      <svg width="18" height="18"><use href="#i-graduation"/></svg>
+    </span>
+    <span>ERP</span>
+  </div>
+
+  {% if session.get('role') == 'student' %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Academics</div>
+    {{ link('student_dashboard', 'dashboard', 'Dashboard') }}
+    {{ link('student_courses',   'book',      'My Courses') }}
+    {{ link('student_progress',  'chart',     'Progress / CGPA') }}
+    {{ link('grade_simulator',   'chart',     'Grade Simulator') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Resources</div>
+    {{ link('student_materials', 'folder',  'Materials') }}
+    {{ link('student_attendance','checkbox','Attendance') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Services</div>
+    {{ link('student_requests',  'clipboard','Requests') }}
+    {{ link('new_request',       'plus',     'New Request') }}
+  </div>
+  {% endif %}
+
+  {% if session.get('role') == 'faculty' %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Teaching</div>
+    {{ link('faculty_dashboard', 'dashboard', 'Dashboard') }}
+    {{ link('faculty_courses',   'book',      'My Sections') }}
+    {{ link('faculty_students',  'users',     'My Students') }}
+    {{ link('faculty_enroll',    'plus',      'Enroll Student') }}
+    {{ link('faculty_add_course','plus',      'Add Course') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Services</div>
+    {{ link('faculty_requests',  'clipboard', 'SWD Requests') }}
+  </div>
+  {% endif %}
+
+  {% if session.get('role') == 'admin' %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Overview</div>
+    {{ link('admin_dashboard',     'dashboard', 'Dashboard') }}
+    {{ link('admin_analytics',     'chart',     'Analytics') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">People</div>
+    {{ link('admin_manage_students','users',    'Students') }}
+    {{ link('admin_manage_faculty', 'users',    'Faculty') }}
+    {{ link('admin_create_user',    'plus',     'Create User') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Academics</div>
+    {{ link('admin_manage_departments','folder',     'Departments') }}
+    {{ link('admin_course_allotment',  'link',       'Course Allotment') }}
+    {{ link('admin_announcements',     'megaphone',  'Announcements') }}
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Workflow</div>
+    {{ link('admin_requests',     'clipboard', 'SWD Requests') }}
+    {{ link('admin_export_csv',   'download',  'Export CSV') }}
+    {{ link('admin_audit_logs',   'shield',    'Audit Logs') }}
+  </div>
+  {% endif %}
+
+  <div class="sidebar-footer">
+    Signed in as <strong style="color:var(--slate-300);">{{ session.get('role')|capitalize }}</strong>
+  </div>
+</aside>
