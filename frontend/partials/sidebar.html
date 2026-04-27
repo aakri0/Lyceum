@@ -15,7 +15,12 @@
     <span class="brand-mark">
       <svg width="18" height="18"><use href="#i-graduation"/></svg>
     </span>
-    <span>ERP</span>
+    <div style="line-height:1.2;">
+      <div>College Portal</div>
+      <div style="font-size:var(--fs-xs); font-weight:500; color:var(--slate-400); text-transform:uppercase; letter-spacing:0.06em;">
+        {{ session.get('role')|capitalize }} workspace
+      </div>
+    </div>
   </div>
 
   {% if session.get('role') == 'student' %}

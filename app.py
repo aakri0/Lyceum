@@ -29,7 +29,7 @@ from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFProtect
 from mysql.connector import Error
 
-from db import close_tracked_connections, get_connection
+from db import DBUnavailable, close_tracked_connections, get_connection
 from forms import ForgotPasswordForm, LoginForm, OTPForm, ResetPasswordForm
 from utils.email_utils import send_otp_email, send_password_reset_email
 
@@ -139,6 +139,15 @@ def _echo_request_id(response):
 @app.teardown_appcontext
 def _release_db_connections(exc):
     close_tracked_connections()
+
+
+@app.errorhandler(DBUnavailable)
+def _handle_db_unavailable(exc: DBUnavailable):
+    """Render a friendly 503 instead of an opaque NoneType.cursor traceback
+    when the DB is unreachable. The cause is logged at DEBUG level (the
+    exception itself was already logged in db.py when raised)."""
+    logger.warning("Returning 503 — database unreachable.")
+    return render_template('errors/503_db.html', detail=str(exc)), 503
 
 @app.template_filter('ordinal_year')
 def ordinal_year_filter(year):

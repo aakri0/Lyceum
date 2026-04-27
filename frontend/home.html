@@ -1,68 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Welcome{% endblock %}
+{% block title %}College Portal{% endblock %}
 
 {% block content %}
-<section class="hero">
-  <h1>Run your college on a single platform.</h1>
-  <p>
-    Role-based portals for students, faculty, and administrators —
-    grades, attendance, course materials, requests, and bonafide
-    certificates, all in one place.
-  </p>
-  <div class="cta-row">
-    <a href="{{ url_for('student_login') }}" class="btn">
-      <svg class="icon"><use href="#i-graduation"/></svg> I'm a Student
-    </a>
-    <a href="{{ url_for('faculty_login') }}" class="btn btn-secondary">
-      <svg class="icon"><use href="#i-book"/></svg> I'm Faculty
-    </a>
-    <a href="{{ url_for('admin_login') }}" class="btn btn-ghost">
-      <svg class="icon"><use href="#i-shield"/></svg> Admin
-    </a>
+{# ===== Institutional header =====
+   No hero animations, no marketing copy. The page reads like the
+   logged-out shell of a real university portal: who this is for,
+   how to sign in, where to find help. #}
+
+<section style="padding: var(--sp-10) 0 var(--sp-6); border-bottom: 1px solid var(--border); margin-bottom: var(--sp-8);">
+  <div style="max-width:760px;">
+    <p class="text-muted text-sm mb-2" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
+      College Portal
+    </p>
+    <h1 style="font-size:2rem; margin-bottom:var(--sp-3);">
+      Sign in to access your academic account
+    </h1>
+    <p class="text-muted" style="font-size:var(--fs-md); margin-bottom:var(--sp-6);">
+      Students, faculty, and administrative staff use this portal to access
+      grades, attendance, course materials, departmental services, and
+      certificate requests.
+    </p>
+    <div class="d-flex" style="flex-wrap:wrap; gap: var(--sp-2);">
+      <a href="{{ url_for('student_login') }}" class="btn">
+        Sign in as Student
+      </a>
+      <a href="{{ url_for('faculty_login') }}" class="btn btn-secondary">
+        Sign in as Faculty
+      </a>
+      <a href="{{ url_for('admin_login') }}" class="btn btn-secondary">
+        Sign in as Administrator
+      </a>
+    </div>
   </div>
 </section>
 
-<h6 class="text-center mt-5 mb-4">Built for the way colleges actually run</h6>
+{# ===== Three-column info layout =====
+   Service catalogue / quick links / contact — what a student or visitor
+   actually expects to see on a portal landing page. #}
 
-<div class="role-grid">
-  <div class="role-card">
-    <div class="icon-bubble">
-      <svg class="icon" width="24" height="24"><use href="#i-graduation"/></svg>
+<div class="d-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+
+  <div class="card">
+    <div class="card-header">
+      <h3>For Students</h3>
     </div>
-    <h3>Students</h3>
-    <p class="text-muted">CGPA &amp; per-semester GPA, grade simulator, attendance with low-attendance warnings, course materials, request tracking.</p>
-  </div>
-  <div class="role-card">
-    <div class="icon-bubble">
-      <svg class="icon" width="24" height="24"><use href="#i-book"/></svg>
+    <div class="card-body">
+      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:var(--sp-2);">
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-chart"/></svg> Semester GPA &amp; cumulative CGPA</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-checkbox"/></svg> Attendance with low-attendance alerts</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-folder"/></svg> Course materials &amp; lecture notes</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-clipboard"/></svg> Welfare requests &amp; bonafide certificates</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-megaphone"/></svg> Department announcements</li>
+      </ul>
     </div>
-    <h3>Faculty</h3>
-    <p class="text-muted">Section-allotted course management, bulk grade entry, daily attendance, materials upload, SWD request review.</p>
-  </div>
-  <div class="role-card">
-    <div class="icon-bubble">
-      <svg class="icon" width="24" height="24"><use href="#i-shield"/></svg>
+    <div class="card-footer">
+      <a href="{{ url_for('student_login') }}">Student sign-in &rarr;</a>
     </div>
-    <h3>Administrators</h3>
-    <p class="text-muted">User &amp; department management, course-faculty allotment, analytics, bulk semester promotion, audit logs, bonafide PDFs.</p>
   </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>For Faculty</h3>
+    </div>
+    <div class="card-body">
+      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:var(--sp-2);">
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-book"/></svg> Section roster &amp; enrollment management</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-edit"/></svg> Grade entry &amp; component-level marking</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-checkbox"/></svg> Daily attendance recording</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-upload"/></svg> Course material uploads</li>
+        <li class="d-flex"><svg class="icon" style="color:var(--text-muted);"><use href="#i-clipboard"/></svg> Review forwarded student requests</li>
+      </ul>
+    </div>
+    <div class="card-footer">
+      <a href="{{ url_for('faculty_login') }}">Faculty sign-in &rarr;</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Help &amp; Information</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted" style="margin-bottom:var(--sp-3);">
+        First-time users are issued credentials by the office of the
+        registrar. You will be asked to set a new password on first sign-in.
+      </p>
+      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:var(--sp-2);">
+        <li><a href="{{ url_for('forgot_password') }}">Forgot your password?</a></li>
+        <li><a href="mailto:helpdesk@example.edu">IT helpdesk · helpdesk@example.edu</a></li>
+        <li class="text-muted text-sm" style="padding-top: var(--sp-2);">
+          Office hours: Mon–Fri, 09:00–17:00
+        </li>
+      </ul>
+    </div>
+  </div>
+
 </div>
 
-<div class="card mt-6">
-  <div class="card-body text-center" style="padding: var(--sp-8);">
-    <h3 class="mb-2">Security defaults that match commercial ERPs</h3>
-    <p class="text-muted mb-4" style="max-width:600px; margin-left:auto; margin-right:auto;">
-      OTP-secured login, bcrypt-12 password hashing, CSRF on every form, rate limiting + account lockout,
-      role-based access guards, audit logs on every state change, and security headers on every response.
-    </p>
-    <div class="d-flex" style="justify-content:center; flex-wrap:wrap;">
-      <span class="tag">Email OTP</span>
-      <span class="tag">CSRF</span>
-      <span class="tag">Rate-limited</span>
-      <span class="tag">Audit logged</span>
-      <span class="tag">Bcrypt-12</span>
-      <span class="tag">Account lockout</span>
-    </div>
+<footer style="margin-top: var(--sp-12); padding-top: var(--sp-5); border-top: 1px solid var(--border); display:flex; justify-content:space-between; flex-wrap:wrap; gap: var(--sp-3); color: var(--text-muted); font-size: var(--fs-sm);">
+  <div>© 2026 College of [Institution Name]. All rights reserved.</div>
+  <div class="d-flex" style="gap: var(--sp-4);">
+    <a href="{{ url_for('forgot_password') }}">Account recovery</a>
+    <span class="text-subtle">·</span>
+    <a href="mailto:helpdesk@example.edu">Helpdesk</a>
   </div>
-</div>
+</footer>
 {% endblock %}
