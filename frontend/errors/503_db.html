@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Service unavailable{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card text-center">
+    <div class="kpi-icon" style="margin: 0 auto var(--sp-4); width:56px; height:56px; background: var(--warning-50); color: var(--warning-700);">
+      <svg class="icon" width="28" height="28"><use href="#i-alert"/></svg>
+    </div>
+    <h2>Service temporarily unavailable</h2>
+    <p class="subtitle">
+      The database is unreachable right now. Please try again in a moment.
+      If the problem persists, contact the IT helpdesk.
+    </p>
+    <div class="auth-footer">
+      <a href="/">&larr; Back to home</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

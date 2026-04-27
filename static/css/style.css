@@ -223,11 +223,11 @@ small, .text-sm { font-size: var(--fs-sm); }
 }
 .sidebar-brand .brand-mark {
   width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
-  border-radius: var(--r-md);
+  background: var(--brand-700);
+  border-radius: var(--r-sm);
   display: grid; place-items: center;
   color: #fff;
-  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.35);
+  flex-shrink: 0;
 }
 .sidebar-section { padding: var(--sp-4) var(--sp-3); }
 .sidebar-section-title {
@@ -944,49 +944,28 @@ tbody tr:hover td { background: var(--brand-50); }
 /* -----------------------------------------------------------------------------
    Hero (landing)
    ----------------------------------------------------------------------------- */
+/* Hero / role-card classes kept for backwards compat, but stripped of the
+   gradient bling — should look like a plain page section. */
 .hero {
-  padding: var(--sp-16) var(--sp-6);
-  background:
-    radial-gradient(60% 80% at 80% 0%, rgba(99, 102, 241, 0.15), transparent 70%),
-    radial-gradient(60% 60% at 0% 100%, rgba(16, 185, 129, 0.1), transparent 60%),
-    var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  margin-bottom: var(--sp-12);
+  padding: var(--sp-10) 0 var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-8);
 }
-.hero h1 {
-  font-size: clamp(2rem, 4vw, 3.25rem);
-  background: linear-gradient(135deg, var(--brand-600), var(--brand-800));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: var(--sp-3);
-}
-.hero p { font-size: var(--fs-lg); color: var(--text-muted); max-width: 640px; margin: 0 auto var(--sp-6); }
-.hero .cta-row { display: flex; justify-content: center; gap: var(--sp-3); flex-wrap: wrap; }
+.hero h1 { font-size: 2rem; margin-bottom: var(--sp-3); }
+.hero p { font-size: var(--fs-md); color: var(--text-muted); margin-bottom: var(--sp-5); max-width: 720px; }
+.hero .cta-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--sp-5);
-  margin-bottom: var(--sp-8);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
 }
 .role-card {
-  padding: var(--sp-6);
-  text-align: center;
+  padding: var(--sp-5);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--surface);
-  transition: transform var(--t-fast), box-shadow var(--t-fast), border-color var(--t-fast);
-}
-.role-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--brand-200); }
-.role-card .icon-bubble {
-  width: 56px; height: 56px;
-  margin: 0 auto var(--sp-3);
-  background: var(--brand-50);
-  color: var(--brand-700);
-  border-radius: var(--r-lg);
-  display: grid; place-items: center;
 }
 
 /* -----------------------------------------------------------------------------
