@@ -193,11 +193,39 @@ def student_dashboard():
     
     cumulative_cgpa = round(cumulative_points / cumulative_credits, 2) if cumulative_credits > 0 else None
     
+    # Light KPIs for the dashboard tiles.
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute(
+        "SELECT COUNT(DISTINCT course_id) AS c FROM enrollments WHERE student_id=%s",
+        (student_id,),
+    )
+    enrolled_count = cur.fetchone()['c']
+    cur.execute(
+        "SELECT COUNT(*) AS c FROM swd_requests WHERE student_id=%s AND status='pending'",
+        (student_id,),
+    )
+    pending_requests = cur.fetchone()['c']
+    cur.execute("""
+        SELECT
+          SUM(CASE WHEN status IN ('P','L') THEN 1 ELSE 0 END) AS present,
+          SUM(CASE WHEN status <> 'X' THEN 1 ELSE 0 END) AS counted
+        FROM attendance WHERE student_id=%s
+    """, (student_id,))
+    att_row = cur.fetchone()
+    counted = (att_row['counted'] or 0)
+    present = (att_row['present'] or 0)
+    overall_attendance = round(100 * present / counted, 1) if counted else None
+    conn.close()
+
     return render_template(
         'student/student_dashboard.html',
         cumulative_cgpa=cumulative_cgpa,
         mini_graph_data=mini_graph_data,
         announcements=announcements,
+        enrolled_count=enrolled_count,
+        pending_requests=pending_requests,
+        overall_attendance=overall_attendance,
     )
 
 

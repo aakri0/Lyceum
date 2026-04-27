@@ -177,9 +177,33 @@ def faculty_dashboard():
         course_ids=course_ids,
     )
 
+    # KPIs.
+    cur.execute(
+        "SELECT COUNT(*) AS c FROM course_sections WHERE faculty_id=%s",
+        (faculty_id,),
+    )
+    section_count = cur.fetchone()['c']
+    cur.execute("""
+        SELECT COUNT(*) AS c FROM enrollments e
+        JOIN course_sections cs ON cs.section_id = e.section_id
+        WHERE cs.faculty_id = %s
+    """, (faculty_id,))
+    student_count = cur.fetchone()['c']
+    cur.execute("""
+        SELECT COUNT(*) AS c FROM swd_requests
+        WHERE assigned_faculty_id=%s AND status='pending'
+    """, (faculty_id,))
+    pending_requests = cur.fetchone()['c']
+
     conn.close()
 
-    return render_template('faculty/faculty_dashboard.html', announcements=announcements)
+    return render_template(
+        'faculty/faculty_dashboard.html',
+        announcements=announcements,
+        section_count=section_count,
+        student_count=student_count,
+        pending_requests=pending_requests,
+    )
 
 
 @app.route('/faculty_courses')
@@ -378,8 +402,8 @@ def faculty_enroll():
     conn.close()
     return render_template(
         'faculty/enroll_student.html',
-        courses=courses,
-        students=students
+        sections=sections,
+        students=students,
     )
 
 @app.route('/faculty_edit_course/<int:course_id>', methods=['GET', 'POST'])
