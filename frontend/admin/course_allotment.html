@@ -1,160 +1,259 @@
 {% extends "base.html" %}
+{% block title %}Course Allotment{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-between align-items-center mb-4">
-    <h2>Course Allotment</h2>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
-       style="width:auto;padding:0.5rem 1rem;">Back to Dashboard</a>
+<div class="page-header">
+  <div class="title-block">
+    <h1>Course allotment</h1>
+    <div class="subtitle">
+      Assign faculty to course sections. Students enroll into sections,
+      so allotment controls who can grade and mark attendance for whom.
+    </div>
   </div>
+  <div class="actions">
+    <button type="button" class="btn" onclick="document.getElementById('newSectionDialog').showModal()">
+      <svg class="icon"><use href="#i-plus"/></svg> New section
+    </button>
+  </div>
+</div>
 
-  <p class="text-muted">
-    A <strong>section</strong> is one offering of a course in a given semester,
-    led by one faculty member. Students are enrolled into a section, not a
-    course directly — so grades, attendance, and faculty access all flow
-    through the section.
-  </p>
+{# Filter bar #}
+<form method="GET" class="card mb-4">
+  <div class="card-body">
+    <div class="form-row">
+      <div>
+        <label>Course</label>
+        <select name="course_id">
+          <option value="">All courses</option>
+          {% for c in courses %}
+          <option value="{{ c.course_id }}" {% if course_filter == c.course_id %}selected{% endif %}>
+            {{ c.dept_name }} — {{ c.course_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Faculty</label>
+        <select name="faculty_id">
+          <option value="">All faculty</option>
+          {% for f in faculty_list %}
+          <option value="{{ f.faculty_id }}" {% if faculty_filter == f.faculty_id %}selected{% endif %}>
+            {{ f.dept_name }} — {{ f.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="d-flex align-end gap-2" style="padding-top:24px;">
+        <button type="submit" class="btn">
+          <svg class="icon"><use href="#i-funnel"/></svg> Filter
+        </button>
+        <a href="{{ url_for('admin_course_allotment') }}" class="btn btn-ghost">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
 
-  {# ---------------- Filters ---------------- #}
-  <form method="GET" class="d-flex gap-2 mb-3" style="flex-wrap:wrap;">
-    <select name="course_id" class="form-control" style="width:auto;">
-      <option value="">All courses</option>
-      {% for c in courses %}
-      <option value="{{ c.course_id }}" {% if course_filter == c.course_id %}selected{% endif %}>
-        {{ c.dept_name }} — {{ c.course_name }}
-      </option>
+{% if not sections %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-link"/></svg></div>
+    <h4>No sections match this filter</h4>
+    <p>Either widen the filter, or create a new section above.</p>
+  </div>
+</div>
+{% else %}
+<div class="card flush">
+  <div class="card-header">
+    <h3>Sections</h3>
+    <small class="text-muted">{{ sections|length }} total</small>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Sem</th>
+        <th>Faculty</th>
+        <th>Roster</th>
+        <th style="width:1%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sections %}
+      <tr>
+        <td>
+          <div class="fw-600">{{ s.course_name }}</div>
+          <small class="text-muted">{{ s.dept_name }}</small>
+        </td>
+        <td><span class="tag">{{ s.section_label }}</span></td>
+        <td>{{ s.semester }}</td>
+        <td>
+          {% if s.faculty_name %}
+            <div class="d-flex">
+              <div class="avatar-md" style="width:30px; height:30px; font-size:var(--fs-xs); background: var(--brand-50); color: var(--brand-700);">
+                {{ s.faculty_name[0]|upper }}
+              </div>
+              <div>
+                <div class="fw-600 text-sm">{{ s.faculty_name }}</div>
+                <small class="text-muted">{{ s.faculty_email }}</small>
+              </div>
+            </div>
+          {% else %}
+            <span class="badge pending">Unassigned</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ s.enrolled_count }}{% if s.capacity %} / {{ s.capacity }}{% endif %}
+          {% if s.capacity and s.enrolled_count >= s.capacity %}
+            <span class="badge rejected" style="margin-left:6px;">Full</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="d-flex" style="gap: var(--sp-1);">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="document.getElementById('editSec{{ s.section_id }}').showModal()">
+              <svg class="icon"><use href="#i-pencil"/></svg> Edit
+            </button>
+            <form action="{{ url_for('admin_section_delete', section_id=s.section_id) }}"
+                  method="POST" style="display:inline;"
+                  onsubmit="return confirm('Delete section {{ s.course_name|e }} · {{ s.section_label|e }}?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm">
+                <svg class="icon"><use href="#i-trash"/></svg>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
       {% endfor %}
-    </select>
-    <select name="faculty_id" class="form-control" style="width:auto;">
-      <option value="">All faculty</option>
-      {% for f in faculty_list %}
-      <option value="{{ f.faculty_id }}" {% if faculty_filter == f.faculty_id %}selected{% endif %}>
-        {{ f.dept_name }} — {{ f.name }}
-      </option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="btn btn-primary" style="width:auto;padding:0.4rem 1rem;">Filter</button>
-    <a href="{{ url_for('admin_course_allotment') }}" class="btn btn-secondary"
-       style="width:auto;padding:0.4rem 1rem;">Clear</a>
-  </form>
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
-  {# ---------------- Create new section ---------------- #}
-  <div class="card mb-4 shadow-sm" style="border-left:5px solid var(--primary);">
-    <div class="card-body">
-      <h5 class="card-title text-primary mb-3">➕ New Section</h5>
-      <form action="{{ url_for('admin_section_create') }}" method="POST"
-            class="d-flex align-items-end gap-2" style="flex-wrap:wrap;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div style="flex:2;min-width:200px;">
-          <label class="text-muted small mb-1">Course</label>
-          <select name="course_id" class="form-control" required>
-            <option value="" disabled selected>Select course</option>
+{# ===== Modal: create new section ===== #}
+<dialog id="newSectionDialog" class="modal">
+  <form method="POST" action="{{ url_for('admin_section_create') }}" class="modal-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <header class="modal-head">
+      <h3>New section</h3>
+      <button type="button" class="btn btn-ghost btn-icon"
+              onclick="document.getElementById('newSectionDialog').close()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <div class="form-row">
+        <div style="grid-column: 1 / -1;">
+          <label>Course</label>
+          <select name="course_id" required>
+            <option value="" disabled selected>Choose a course…</option>
             {% for c in courses %}
             <option value="{{ c.course_id }}">{{ c.dept_name }} — {{ c.course_name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div style="flex:1;min-width:80px;">
-          <label class="text-muted small mb-1">Section</label>
-          <input type="text" name="section_label" class="form-control" placeholder="A" maxlength="10" required>
+        <div>
+          <label>Section label</label>
+          <input type="text" name="section_label" placeholder="A" maxlength="10" required>
+          <div class="form-help">Letters / digits / hyphens only.</div>
         </div>
-        <div style="flex:1;min-width:80px;">
-          <label class="text-muted small mb-1">Semester</label>
-          <select name="semester" class="form-control" required>
+        <div>
+          <label>Semester</label>
+          <select name="semester" required>
             <option value="" disabled selected>—</option>
-            {% for i in range(1, 9) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+            {% for i in range(1, 9) %}<option value="{{ i }}">Semester {{ i }}</option>{% endfor %}
           </select>
         </div>
-        <div style="flex:2;min-width:200px;">
-          <label class="text-muted small mb-1">Faculty</label>
-          <select name="faculty_id" class="form-control">
-            <option value="">— Unassigned —</option>
+        <div>
+          <label>Faculty</label>
+          <select name="faculty_id">
+            <option value="">Unassigned</option>
             {% for f in faculty_list %}
             <option value="{{ f.faculty_id }}">{{ f.dept_name }} — {{ f.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div style="flex:1;min-width:90px;">
-          <label class="text-muted small mb-1">Capacity</label>
-          <input type="number" name="capacity" class="form-control" min="1" max="500" placeholder="optional">
+        <div>
+          <label>Capacity</label>
+          <input type="number" name="capacity" min="1" max="500" placeholder="optional">
+          <div class="form-help">Leave blank for no cap.</div>
         </div>
-        <button type="submit" class="btn btn-primary" style="height:38px;width:auto;padding:0 1.2rem;">Create</button>
-      </form>
+      </div>
     </div>
-  </div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-ghost"
+              onclick="document.getElementById('newSectionDialog').close()">Cancel</button>
+      <button type="submit" class="btn">Create section</button>
+    </footer>
+  </form>
+</dialog>
 
-  {# ---------------- Existing sections ---------------- #}
-  {% if sections %}
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover">
-      <thead class="thead-light">
-        <tr>
-          <th>Course</th>
-          <th>Section</th>
-          <th>Semester</th>
-          <th>Faculty</th>
-          <th>Enrolled</th>
-          <th>Capacity</th>
-          <th style="width:280px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in sections %}
-        <tr>
-          <td><strong>{{ s.course_name }}</strong><br><small class="text-muted">{{ s.dept_name }}</small></td>
-          <td>{{ s.section_label }}</td>
-          <td>{{ s.semester }}</td>
-          <td>
-            {% if s.faculty_name %}
-              {{ s.faculty_name }}<br><small class="text-muted">{{ s.faculty_email }}</small>
-            {% else %}
-              <span class="text-muted">— Unassigned —</span>
-            {% endif %}
-          </td>
-          <td>{{ s.enrolled_count }}</td>
-          <td>{{ s.capacity or '—' }}</td>
-          <td>
-            <details>
-              <summary class="btn btn-warning" style="width:auto;padding:0.25rem 0.8rem;font-size:0.9rem;">Edit</summary>
-              <form action="{{ url_for('admin_section_edit', section_id=s.section_id) }}" method="POST"
-                    class="mt-2 d-flex flex-column gap-1">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="course_id" value="{{ s.course_id }}">
-                <input type="text" name="section_label" value="{{ s.section_label }}"
-                       class="form-control" style="font-size:0.85rem;">
-                <select name="semester" class="form-control" style="font-size:0.85rem;">
-                  {% for i in range(1, 9) %}
-                  <option value="{{ i }}" {% if s.semester == i %}selected{% endif %}>Sem {{ i }}</option>
-                  {% endfor %}
-                </select>
-                <select name="faculty_id" class="form-control" style="font-size:0.85rem;">
-                  <option value="">— Unassigned —</option>
-                  {% for f in faculty_list %}
-                  <option value="{{ f.faculty_id }}" {% if f.faculty_id == s.faculty_id %}selected{% endif %}>
-                    {{ f.name }}
-                  </option>
-                  {% endfor %}
-                </select>
-                <input type="number" name="capacity" value="{{ s.capacity or '' }}" min="1" max="500"
-                       class="form-control" placeholder="capacity" style="font-size:0.85rem;">
-                <button type="submit" class="btn btn-primary"
-                        style="width:auto;padding:0.25rem 0.8rem;font-size:0.85rem;">Save</button>
-              </form>
-            </details>
-            <form action="{{ url_for('admin_section_delete', section_id=s.section_id) }}" method="POST"
-                  style="display:inline;margin-left:0.4rem;"
-                  onsubmit="return confirm('Delete section {{ s.course_name }} · {{ s.section_label }}?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-danger"
-                      style="width:auto;padding:0.25rem 0.8rem;font-size:0.9rem;">Delete</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="alert alert-info">No sections match the current filter.</div>
-  {% endif %}
-</div>
+{# ===== One edit modal per existing section ===== #}
+{% for s in sections %}
+<dialog id="editSec{{ s.section_id }}" class="modal">
+  <form method="POST" action="{{ url_for('admin_section_edit', section_id=s.section_id) }}" class="modal-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <header class="modal-head">
+      <h3>Edit · {{ s.course_name }} <span class="text-muted">/ Sec {{ s.section_label }}</span></h3>
+      <button type="button" class="btn btn-ghost btn-icon"
+              onclick="document.getElementById('editSec{{ s.section_id }}').close()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <div class="form-row">
+        <input type="hidden" name="course_id" value="{{ s.course_id }}">
+        <div>
+          <label>Section label</label>
+          <input type="text" name="section_label" value="{{ s.section_label }}" maxlength="10" required>
+        </div>
+        <div>
+          <label>Semester</label>
+          <select name="semester" required>
+            {% for i in range(1, 9) %}
+            <option value="{{ i }}" {% if s.semester == i %}selected{% endif %}>Semester {{ i }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label>Faculty</label>
+          <select name="faculty_id">
+            <option value="">Unassigned</option>
+            {% for f in faculty_list %}
+            <option value="{{ f.faculty_id }}" {% if f.faculty_id == s.faculty_id %}selected{% endif %}>
+              {{ f.dept_name }} — {{ f.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Capacity</label>
+          <input type="number" name="capacity" value="{{ s.capacity or '' }}" min="1" max="500" placeholder="optional">
+        </div>
+        <div>
+          <label class="text-muted">Currently enrolled</label>
+          <div class="text-sm" style="padding-top:8px;">{{ s.enrolled_count }} students</div>
+        </div>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-ghost"
+              onclick="document.getElementById('editSec{{ s.section_id }}').close()">Cancel</button>
+      <button type="submit" class="btn">Save changes</button>
+    </footer>
+  </form>
+</dialog>
+{% endfor %}
+{% endblock %}
+
+{% block body_end %}
+<script>
+  // Close dialogs when the user clicks the backdrop (outside .modal-card).
+  document.querySelectorAll('dialog.modal').forEach(d => {
+    d.addEventListener('click', e => {
+      if (e.target === d) d.close();
+    });
+  });
+</script>
 {% endblock %}

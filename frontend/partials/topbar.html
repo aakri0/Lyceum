@@ -1,4 +1,9 @@
-{# Topbar with mobile menu toggle, breadcrumb, notifications bell, user chip + dropdown. #}
+{# Topbar: mobile menu toggle, breadcrumb, notifications bell, user chip + dropdown.
+   Shows the signed-in user's display name; falls back to role/'User' on
+   the rare miss so we never render an empty chip. #}
+{% set _name = (current_user.name if current_user else None) or session.get('role')|capitalize or 'User' %}
+{% set _initial = (current_user.name[0]|upper if current_user and current_user.name else (session.get('role') or '?')[0]|upper) %}
+
 <header class="topbar">
   <div class="topbar-left">
     <button type="button" class="topbar-action menu-toggle" aria-label="Toggle navigation">
@@ -6,7 +11,7 @@
     </button>
 
     <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="/">ERP</a>
+      <a href="/">Portal</a>
       <span class="sep">/</span>
       <span class="current">{% block breadcrumb %}{% endblock %}</span>
     </nav>
@@ -23,23 +28,30 @@
     <div class="has-menu">
       <button type="button" class="user-chip" aria-haspopup="true">
         <span class="avatar">
-          {% if session.get('role') %}{{ session.get('role')[0]|upper }}{% else %}?{% endif %}
+          {% if current_user and current_user.profile_photo %}
+            <img src="{{ url_for('profile_photo', filename=current_user.profile_photo) }}" alt="">
+          {% else %}
+            {{ _initial }}
+          {% endif %}
         </span>
-        <span class="meta">
+        <span class="meta" style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.15;">
+          <span style="font-weight:600; font-size:var(--fs-sm); color:var(--text);">{{ _name }}</span>
           <span class="role-tag">{{ session.get('role')|default('Guest') }}</span>
         </span>
       </button>
       <div class="menu" role="menu">
         <div class="menu-label">Account</div>
-        <a href="{{ url_for('change_password') }}">
-          <svg class="icon" width="16" height="16"><use href="#i-shield"/></svg>
-          Change password
-        </a>
         {% if session.get('role') == 'student' %}
         <a href="{{ url_for('student_profile') }}">
           <svg class="icon" width="16" height="16"><use href="#i-user"/></svg>
           My profile
         </a>
+        {% endif %}
+        <a href="{{ url_for('change_password') }}">
+          <svg class="icon" width="16" height="16"><use href="#i-shield"/></svg>
+          Change password
+        </a>
+        {% if session.get('role') == 'student' %}
         <a href="{{ url_for('student_export') }}">
           <svg class="icon" width="16" height="16"><use href="#i-download"/></svg>
           Download my data

@@ -1,64 +1,96 @@
 {% extends "base.html" %}
+{% block title %}My Students{% endblock %}
+
 {% block content %}
-
-<div class="card">
-    <div class="d-flex justify-between mb-4">
-        <h2 class="card-title" style="margin-bottom: 0;">Department Students</h2>
-        <a href="/faculty_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
-    </div>
-
-    {% if students_by_year %}
-    {% for year in students_by_year.keys()|sort %}
-    <div style="margin-bottom: 2rem;">
-        <h3 style="color: var(--primary); margin-bottom: 1rem;">
-            {{ year | ordinal_year }}
-        </h3>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Roll No</th>
-                        <th>Email</th>
-                        <th>Cumulative CGPA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in students_by_year[year] %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('faculty_student_detail', student_id=student.student_id) }}"
-                                style="color: var(--primary); text-decoration: none; font-weight: 500;">
-                                {{ student.name }}
-                            </a>
-                        </td>
-                        <td>{{ student.roll_no }}</td>
-                        <td>{{ student.email }}</td>
-                        <td>
-                            {% if student.cgpa %}
-                            {% if student.cgpa >= 8.0 %}
-                            <span class="badge" style="background: #10B981;">{{ student.cgpa }}</span>
-                            {% elif student.cgpa >= 6.0 %}
-                            <span class="badge" style="background: #F59E0B;">{{ student.cgpa }}</span>
-                            {% else %}
-                            <span class="badge" style="background: #EF4444;">{{ student.cgpa }}</span>
-                            {% endif %}
-                            {% else %}
-                            <span class="text-muted">N/A</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <div class="alert info text-center">
-        <p style="margin: 0;">No students found in your department.</p>
-    </div>
-    {% endif %}
+<div class="page-header">
+  <div class="title-block">
+    <h1>My Students</h1>
+    <div class="subtitle">Students from your department, grouped by year of study.</div>
+  </div>
 </div>
 
+{% if not students_by_year %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-users"/></svg></div>
+    <h4>No students yet</h4>
+    <p>When students join your department they will appear here.</p>
+  </div>
+</div>
+{% else %}
+
+{# Quick KPI strip — totals per year. #}
+<div class="kpi-grid">
+  {% for year in students_by_year.keys()|sort %}
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-academic"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">{{ year | ordinal_year }}</span>
+      <span class="kpi-value">{{ students_by_year[year]|length }}</span>
+      <span class="kpi-meta">
+        {{ students_by_year[year]|length }} {{ 'student' if students_by_year[year]|length == 1 else 'students' }}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% for year in students_by_year.keys()|sort %}
+<div class="card flush mb-4">
+  <div class="card-header">
+    <h3>{{ year | ordinal_year }}</h3>
+    <small class="text-muted">{{ students_by_year[year]|length }} students</small>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Roll No</th>
+        <th>Email</th>
+        <th>CGPA</th>
+        <th style="width:1%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students_by_year[year] %}
+      <tr>
+        <td>
+          <div class="d-flex">
+            <div class="avatar-md" style="width:32px; height:32px; font-size:var(--fs-xs); background: var(--brand-50); color: var(--brand-700);">
+              {{ student.name[0]|upper }}
+            </div>
+            <a href="{{ url_for('faculty_student_detail', student_id=student.student_id) }}"
+               class="fw-600">{{ student.name }}</a>
+          </div>
+        </td>
+        <td class="font-mono text-sm">{{ student.roll_no }}</td>
+        <td class="text-muted text-sm">{{ student.email }}</td>
+        <td>
+          {% if student.cgpa is not none and student.cgpa != 'N/A' %}
+            {% set cgpa_val = student.cgpa|float %}
+            {% if cgpa_val >= 8.0 %}
+              <span class="badge approved">{{ cgpa_val }}</span>
+            {% elif cgpa_val >= 6.0 %}
+              <span class="badge pending">{{ cgpa_val }}</span>
+            {% else %}
+              <span class="badge rejected">{{ cgpa_val }}</span>
+            {% endif %}
+          {% else %}
+            <span class="text-subtle">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('faculty_student_detail', student_id=student.student_id) }}"
+             class="btn btn-secondary btn-sm">
+            View
+            <svg class="icon"><use href="#i-arrow-right"/></svg>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endif %}
 {% endblock %}

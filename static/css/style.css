@@ -978,6 +978,53 @@ tbody tr:hover td { background: var(--brand-50); }
 }
 
 /* -----------------------------------------------------------------------------
+   Modal (HTML <dialog>)
+   ----------------------------------------------------------------------------- */
+dialog.modal {
+  border: none;
+  padding: 0;
+  border-radius: var(--r-lg);
+  background: transparent;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: visible;
+}
+dialog.modal::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+.modal-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  width: 560px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h3 { margin: 0; font-size: var(--fs-lg); }
+.modal-body {
+  padding: var(--sp-5);
+  overflow-y: auto;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+
+/* -----------------------------------------------------------------------------
    Helpers
    ----------------------------------------------------------------------------- */
 .d-flex { display: flex; align-items: center; gap: var(--sp-3); }
