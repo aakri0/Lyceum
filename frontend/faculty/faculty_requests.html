@@ -1,57 +1,101 @@
 {% extends "base.html" %}
+{% block title %}SWD Requests{% endblock %}
+
 {% block content %}
-
-<div class="card">
-    <div class="d-flex justify-between mb-4">
-        <h2 class="card-title" style="margin-bottom: 0;">Forwarded SWD Requests</h2>
-        <a href="{{ url_for('faculty_dashboard') }}" class="btn btn-secondary"
-            style="width: auto; padding: 0.5rem 1rem;">Back</a>
-    </div>
-
-    {% if requests %}
-    <div style="overflow-x: auto;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Student Name</th>
-                    <th>Roll No</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in requests %}
-                <tr>
-                    <td>{{ r.student_name }}</td>
-                    <td>{{ r.roll_no }}</td>
-                    <td>{{ r.category }}</td>
-                    <td>{{ r.description[:80] }}{% if r.description|length > 80 %}…{% endif %}</td>
-                    <td>
-                        {% if r.status == 'pending' %}
-                        <span class="badge pending">Pending</span>
-                        {% elif r.status == 'approved' %}
-                        <span class="badge approved">Approved</span>
-                        {% elif r.status == 'rejected' %}
-                        <span class="badge rejected">Rejected</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('request_detail', req_id=r.req_id) }}"
-                           class="btn btn-primary"
-                           style="padding:0.25rem 0.8rem;font-size:0.85rem;width:auto;">Open</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="alert info text-center">
-        <p class="text-muted">No requests have been forwarded to you yet.</p>
-    </div>
-    {% endif %}
+<div class="page-header">
+  <div class="title-block">
+    <h1>SWD Requests</h1>
+    <div class="subtitle">Requests forwarded to you for review.</div>
+  </div>
 </div>
 
+{% if not requests %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-clipboard"/></svg></div>
+    <h4>Nothing in your queue</h4>
+    <p>When admin forwards a student request to you, it will appear here.</p>
+  </div>
+</div>
+{% else %}
+
+{% set pending  = requests | selectattr('status','equalto','pending')  | list %}
+{% set approved = requests | selectattr('status','equalto','approved') | list %}
+{% set rejected = requests | selectattr('status','equalto','rejected') | list %}
+<div class="kpi-grid">
+  <div class="kpi {% if pending|length > 0 %}kpi-warning{% endif %}">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Pending</span>
+      <span class="kpi-value">{{ pending | length }}</span>
+      <span class="kpi-meta">awaiting your action</span>
+    </div>
+  </div>
+  <div class="kpi kpi-success">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-circle-check"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Approved</span>
+      <span class="kpi-value">{{ approved | length }}</span>
+      <span class="kpi-meta">resolved by you</span>
+    </div>
+  </div>
+  <div class="kpi kpi-danger">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-x"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Rejected</span>
+      <span class="kpi-value">{{ rejected | length }}</span>
+      <span class="kpi-meta">declined by you</span>
+    </div>
+  </div>
+</div>
+
+<div class="card flush">
+  <div class="card-header">
+    <h3>Request queue</h3>
+    <small class="text-muted">{{ requests | length }} total</small>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>Status</th>
+        <th style="width:1%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in requests %}
+      <tr>
+        <td>
+          <div class="d-flex">
+            <div class="avatar-md" style="width:32px; height:32px; font-size:var(--fs-xs); background: var(--brand-50); color: var(--brand-700);">
+              {{ r.student_name[0]|upper }}
+            </div>
+            <div>
+              <div class="fw-600">{{ r.student_name }}</div>
+              <small class="text-muted font-mono">{{ r.roll_no }}</small>
+            </div>
+          </div>
+        </td>
+        <td><span class="tag">{{ r.category }}</span></td>
+        <td style="max-width:340px;">
+          <span class="text-muted text-sm">
+            {{ r.description[:100] }}{% if r.description|length > 100 %}…{% endif %}
+          </span>
+        </td>
+        <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+        <td>
+          <a href="{{ url_for('request_detail', req_id=r.req_id) }}"
+             class="btn btn-secondary btn-sm">
+            Open
+            <svg class="icon"><use href="#i-arrow-right"/></svg>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

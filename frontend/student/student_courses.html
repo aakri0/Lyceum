@@ -1,45 +1,101 @@
 {% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+
 {% block content %}
-<div class="card">
-  <div class="d-flex justify-between mb-4">
-    <h2 class="card-title" style="margin-bottom: 0;">My Courses</h2>
-    <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
-  </div>
-  <div style="overflow-x: auto;">
-    <table>
-      <thead>
-        <tr>
-          <th>Course</th>
-          <th>Section</th>
-          <th>Faculty</th>
-          <th>Credits</th>
-          <th>Semester</th>
-          <th>Grade</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in courses %}
-        <tr>
-          <td>{{ c.course_name }}</td>
-          <td>{% if c.section_label %}<span class="badge" style="background:#e2e8f0;color:#475569;">{{ c.section_label }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-          <td>{{ c.faculty_name }}</td>
-          <td>{{ c.credits }}</td>
-          <td>{{ c.semester }}</td>
-          <td>
-            {% if c.grade %}
-            <span class="badge {{ 'approved' if c.grade != 'F' else 'rejected' }}">{{ c.grade }}</span>
-            {% else %}
-            <span class="text-muted">N/A</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="6" class="text-center text-muted">No courses found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="page-header">
+  <div class="title-block">
+    <h1>My Courses</h1>
+    <div class="subtitle">Every section you're enrolled in across all semesters.</div>
   </div>
 </div>
+
+{% set total_credits = courses | sum(attribute='credits') if courses else 0 %}
+{% set graded = courses | selectattr('grade') | list if courses else [] %}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-book"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Enrolled Courses</span>
+      <span class="kpi-value">{{ courses | length }}</span>
+      <span class="kpi-meta">all semesters</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-academic"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Total Credits</span>
+      <span class="kpi-value">{{ total_credits }}</span>
+      <span class="kpi-meta">across the listed courses</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-circle-check"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Graded</span>
+      <span class="kpi-value">{{ graded | length }}</span>
+      <span class="kpi-meta">{{ courses | length - (graded | length) }} pending</span>
+    </div>
+  </div>
+</div>
+
+{% if not courses %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-book"/></svg></div>
+    <h4>No courses yet</h4>
+    <p>Once a faculty member enrolls you into a section, it will appear here.</p>
+  </div>
+</div>
+{% else %}
+<div class="card flush">
+  <div class="card-header">
+    <h3>Course list</h3>
+    <small class="text-muted">Sorted by semester</small>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Faculty</th>
+        <th>Credits</th>
+        <th>Semester</th>
+        <th>Grade</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in courses %}
+      <tr>
+        <td>
+          <div class="d-flex">
+            <div class="kpi-icon" style="width:32px; height:32px;">
+              <svg class="icon" width="16" height="16"><use href="#i-book"/></svg>
+            </div>
+            <span class="fw-600">{{ c.course_name }}</span>
+          </div>
+        </td>
+        <td>
+          {% if c.section_label %}
+            <span class="tag">{{ c.section_label }}</span>
+          {% else %}
+            <span class="text-subtle">—</span>
+          {% endif %}
+        </td>
+        <td class="text-muted text-sm">{{ c.faculty_name or '—' }}</td>
+        <td>{{ c.credits }}</td>
+        <td>Sem {{ c.semester }}</td>
+        <td>
+          {% if c.grade %}
+            {% set is_fail = c.grade in ('F', '0') %}
+            <span class="badge {{ 'rejected' if is_fail else 'approved' }}">{{ c.grade }}</span>
+          {% else %}
+            <span class="badge pending no-dot">In&nbsp;progress</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

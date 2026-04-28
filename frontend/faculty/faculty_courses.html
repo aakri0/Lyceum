@@ -1,71 +1,105 @@
 {% extends "base.html" %}
+{% block title %}My Sections{% endblock %}
+
 {% block content %}
-
-<div class="card">
-    <div class="d-flex justify-between mb-4">
-        <h2 class="card-title" style="margin-bottom: 0;">Your Sections</h2>
-        <div class="d-flex">
-            <a href="{{ url_for('faculty_add_course') }}" class="btn btn-primary" style="width: auto;">+ Add Course</a>
-            <a href="{{ url_for('faculty_dashboard') }}" class="btn btn-secondary"
-                style="width: auto; padding: 0.5rem 1rem;">Back</a>
-        </div>
+<div class="page-header">
+  <div class="title-block">
+    <h1>My Sections</h1>
+    <div class="subtitle">
+      Sections (course × group × semester) allotted to you by admin.
+      Allotments are managed in <a href="#">Course Allotment</a>.
     </div>
-
-    <p class="text-muted">
-        These are the sections (course × group × semester) you've been
-        allotted by admin. To add or remove allotments, ask the admin to
-        edit the <em>Course Allotment</em> page.
-    </p>
-
-    {% if sections %}
-    <div style="overflow-x: auto;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Course</th>
-                    <th>Section</th>
-                    <th>Semester</th>
-                    <th>Credits</th>
-                    <th>Enrolled</th>
-                    <th style="width: 280px;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in sections %}
-                <tr>
-                    <td>{{ s.course_name }}</td>
-                    <td><span class="badge" style="background:#e2e8f0;color:#475569;">{{ s.section_label }}</span></td>
-                    <td>{{ s.semester }}</td>
-                    <td>{{ s.credits }}</td>
-                    <td>{{ s.enrolled_count }}{% if s.capacity %} / {{ s.capacity }}{% endif %}</td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <a href="{{ url_for('faculty_course_students', course_id=s.course_id) }}"
-                                class="btn btn-primary"
-                                style="padding: 0.4rem 0.8rem; font-size: 0.85em; width: auto;">View Students</a>
-                            <a href="{{ url_for('faculty_attendance', section_id=s.section_id) }}"
-                                class="btn btn-primary"
-                                style="padding: 0.4rem 0.8rem; font-size: 0.85em; width: auto; background: #10b981;">Attendance</a>
-                            <a href="{{ url_for('faculty_bulk_grades', section_id=s.section_id) }}"
-                                class="btn btn-primary"
-                                style="padding: 0.4rem 0.8rem; font-size: 0.85em; width: auto; background: #f97316;">Grades</a>
-                            <a href="{{ url_for('faculty_materials', course_id=s.course_id) }}"
-                                class="btn btn-primary"
-                                style="padding: 0.4rem 0.8rem; font-size: 0.85em; width: auto; background: #6366f1;">Materials</a>
-                            <a href="{{ url_for('faculty_edit_course', course_id=s.course_id) }}" class="btn"
-                                style="padding: 0.4rem 0.8rem; font-size: 0.85em; background: #F59E0B; color: white; width: auto;">Edit Course</a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="alert info text-center">
-        <p class="text-muted">No sections allotted to you yet. Contact admin.</p>
-    </div>
-    {% endif %}
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('faculty_add_course') }}" class="btn">
+      <svg class="icon"><use href="#i-plus"/></svg> Add Course
+    </a>
+  </div>
 </div>
 
+{% if not sections %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-folder"/></svg></div>
+    <h4>No sections allotted yet</h4>
+    <p>Ask your admin to assign you a section in <em>Course Allotment</em>.</p>
+  </div>
+</div>
+{% else %}
+
+{% set total_students = sections | sum(attribute='enrolled_count') %}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-folder"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Sections</span>
+      <span class="kpi-value">{{ sections | length }}</span>
+      <span class="kpi-meta">teaching this term</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-users"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Students Total</span>
+      <span class="kpi-value">{{ total_students }}</span>
+      <span class="kpi-meta">across every section</span>
+    </div>
+  </div>
+</div>
+
+{# One card per section — gives each its own header with course + section
+   pill, then a focused row of action buttons below. Easier to scan than a
+   wide table with 5 colored buttons crammed into the last cell. #}
+<div class="d-grid" style="grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));">
+  {% for s in sections %}
+  <div class="card hover-elevate" style="margin-bottom: 0;">
+    <div class="card-header">
+      <div>
+        <div class="text-muted text-xs" style="text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
+          Sem {{ s.semester }} · {{ s.credits }} {{ 'credit' if s.credits == 1 else 'credits' }}
+        </div>
+        <h3 style="margin-top:2px;">{{ s.course_name }}</h3>
+      </div>
+      <span class="tag">Sec {{ s.section_label }}</span>
+    </div>
+    <div class="card-body" style="padding-top: var(--sp-3);">
+      <div class="d-flex" style="gap: var(--sp-3); margin-bottom: var(--sp-4);">
+        <div>
+          <div class="text-muted text-xs" style="text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">Roster</div>
+          <div style="font-size: var(--fs-xl); font-weight:700; line-height:1.1;">
+            {{ s.enrolled_count }}{% if s.capacity %}<span class="text-subtle text-sm" style="font-weight:500;"> / {{ s.capacity }}</span>{% endif %}
+          </div>
+        </div>
+        {% if s.capacity %}
+        {% set pct = (s.enrolled_count / s.capacity * 100) if s.capacity else 0 %}
+        <div style="flex:1;">
+          <div class="text-muted text-xs" style="text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:6px;">Capacity</div>
+          <div style="height:6px; background: var(--slate-100); border-radius: var(--r-pill); overflow:hidden;">
+            <div style="height:100%; width: {{ [pct, 100] | min }}%; background: {{ 'var(--danger-500)' if pct >= 100 else 'var(--brand-500)' }};"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="d-flex" style="flex-wrap:wrap; gap: var(--sp-2);">
+        <a href="{{ url_for('faculty_course_students', course_id=s.course_id) }}" class="btn btn-secondary btn-sm">
+          <svg class="icon"><use href="#i-users"/></svg> Students
+        </a>
+        <a href="{{ url_for('faculty_attendance', section_id=s.section_id) }}" class="btn btn-secondary btn-sm">
+          <svg class="icon"><use href="#i-checkbox"/></svg> Attendance
+        </a>
+        <a href="{{ url_for('faculty_bulk_grades', section_id=s.section_id) }}" class="btn btn-secondary btn-sm">
+          <svg class="icon"><use href="#i-edit"/></svg> Grades
+        </a>
+        <a href="{{ url_for('faculty_materials', course_id=s.course_id) }}" class="btn btn-secondary btn-sm">
+          <svg class="icon"><use href="#i-folder"/></svg> Materials
+        </a>
+        <a href="{{ url_for('faculty_edit_course', course_id=s.course_id) }}" class="btn btn-ghost btn-sm">
+          <svg class="icon"><use href="#i-pencil"/></svg> Edit course
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

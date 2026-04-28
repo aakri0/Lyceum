@@ -1047,7 +1047,7 @@ def admin_course_allotment():
     cur.execute(f"""
         SELECT cs.section_id, cs.course_id, cs.section_label, cs.semester,
                cs.faculty_id, cs.capacity, cs.created_at,
-               c.course_name, c.dept_id, d.dept_name,
+               c.course_name, c.dept_id, c.credits, d.dept_name,
                u.name AS faculty_name, u.email AS faculty_email,
                (SELECT COUNT(*) FROM enrollments e WHERE e.section_id = cs.section_id) AS enrolled_count
         FROM course_sections cs
