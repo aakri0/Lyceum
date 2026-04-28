@@ -61,32 +61,45 @@
 
 {# ===== 2-column layout: announcements + GPA chart ===== #}
 <div class="d-grid" style="grid-template-columns: 1fr 1fr;">
-  <div class="card">
+  <div class="card flush">
     <div class="card-header">
       <h3><svg class="icon" style="vertical-align:-3px;"><use href="#i-megaphone"/></svg> Announcements</h3>
+      {% if announcements %}<small class="text-muted">{{ announcements | length }} total</small>{% endif %}
     </div>
-    <div class="card-body" style="padding:0;">
-      {% if announcements %}
-        {% for a in announcements[:5] %}
-        <div style="padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border);">
-          <div class="d-flex" style="justify-content:space-between; align-items:flex-start;">
-            <strong>{% if a.pinned %}<span class="tag" style="margin-right:6px;">Pinned</span>{% endif %}{{ a.title }}</strong>
-            <small class="text-subtle">{{ a.created_at }}</small>
+    {% if announcements %}
+    <ul style="list-style:none; padding:0; margin:0;">
+      {% for a in announcements[:5] %}
+      <li style="display:flex; gap: var(--sp-3); align-items:flex-start;
+                 padding: var(--sp-4) var(--sp-5);
+                 border-bottom: 1px solid var(--border);
+                 {% if a.pinned %}background: linear-gradient(90deg, var(--brand-50) 0, var(--brand-50) 4px, transparent 4px);{% endif %}">
+        <div class="kpi-icon" style="width:36px; height:36px; flex-shrink:0;
+             {% if a.pinned %}background:var(--brand-100); color:var(--brand-700);{% endif %}">
+          <svg class="icon" width="16" height="16"><use href="#i-megaphone"/></svg>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div class="d-flex" style="justify-content:space-between; align-items:flex-start; gap: var(--sp-3);">
+            <div class="fw-600" style="line-height:1.35;">
+              {% if a.pinned %}<span class="tag" style="margin-right:6px; background: var(--warning-100); color: var(--warning-700); border-color: var(--warning-100);">Pinned</span>{% endif %}
+              {{ a.title }}
+            </div>
+            <small class="text-subtle" style="white-space:nowrap;">{{ a.created_at.strftime('%b %d') if a.created_at and a.created_at is not string else a.created_at }}</small>
           </div>
-          <p class="text-muted text-sm mt-1" style="margin-bottom:0;">
+          <p class="text-muted text-sm" style="margin: 4px 0 0;">
             {{ a.body[:160] }}{% if a.body|length > 160 %}…{% endif %}
           </p>
-          <small class="text-subtle">— {{ a.poster_name }}</small>
+          <small class="text-subtle">posted by {{ a.poster_name }}</small>
         </div>
-        {% endfor %}
-      {% else %}
-      <div class="empty-state">
-        <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-megaphone"/></svg></div>
-        <h4>No announcements</h4>
-        <p>You're all caught up.</p>
-      </div>
-      {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-megaphone"/></svg></div>
+      <h4>No announcements</h4>
+      <p>You're all caught up.</p>
     </div>
+    {% endif %}
   </div>
 
   <div class="card">

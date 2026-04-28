@@ -1002,11 +1002,19 @@ tbody tr:hover td { background: var(--brand-50); }
    Modal (HTML <dialog>)
    ----------------------------------------------------------------------------- */
 dialog.modal {
+  /* Browser default positioning for <dialog> is inconsistent (top: 50%
+     with margin auto in some, absolute in others). Force fixed-position
+     centering so the modal lands in the same place every time. */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
   border: none;
   padding: 0;
   border-radius: var(--r-lg);
   background: transparent;
-  max-width: 90vw;
+  max-width: min(560px, 90vw);
   max-height: 90vh;
   overflow: visible;
 }

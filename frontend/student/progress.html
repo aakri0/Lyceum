@@ -1,37 +1,77 @@
 {% extends "base.html" %}
+{% block title %}Academic Progress{% endblock %}
 
 {% block content %}
+<div class="page-header">
+  <div class="title-block">
+    <h1>Academic Progress</h1>
+    <div class="subtitle">Semester-by-semester GPA and your current cumulative CGPA.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('grade_simulator') }}" class="btn btn-secondary">
+      <svg class="icon"><use href="#i-sparkles"/></svg> Simulate
+    </a>
+  </div>
+</div>
+
+{% if not data %}
 <div class="card">
-  <div class="d-flex justify-between mb-4">
-    <h2 class="card-title" style="margin-bottom: 0;">Academic Progress</h2>
-    <a href="/student_dashboard" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem;">Back</a>
+  <div class="empty-state">
+    <div class="icon-bubble"><svg class="icon" width="22" height="22"><use href="#i-chart"/></svg></div>
+    <h4>No graded semesters yet</h4>
+    <p>Your CGPA and trend will appear here once your first courses are graded.</p>
+  </div>
+</div>
+{% else %}
+
+{% set best = data | max(attribute='gpa') %}
+{% set worst = data | min(attribute='gpa') %}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-academic"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Cumulative CGPA</span>
+      <span class="kpi-value">{{ cumulative_cgpa or '—' }}</span>
+      <span class="kpi-meta">across {{ data | length }} {{ 'semester' if data | length == 1 else 'semesters' }}</span>
+    </div>
+  </div>
+  <div class="kpi kpi-success">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-sparkles"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Best Semester</span>
+      <span class="kpi-value">{{ best.gpa }}</span>
+      <span class="kpi-meta">Semester {{ best.semester }}</span>
+    </div>
+  </div>
+  <div class="kpi {% if worst.gpa < 6.0 %}kpi-warning{% endif %}">
+    <div class="kpi-icon"><svg class="icon"><use href="#i-chart"/></svg></div>
+    <div class="kpi-body">
+      <span class="kpi-label">Lowest Semester</span>
+      <span class="kpi-value">{{ worst.gpa }}</span>
+      <span class="kpi-meta">Semester {{ worst.semester }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="d-grid" style="grid-template-columns: 2fr 1fr; align-items:flex-start;">
+  <div class="card">
+    <div class="card-header">
+      <h3><svg class="icon" style="vertical-align:-3px;"><use href="#i-chart"/></svg> GPA Trend</h3>
+      <small class="text-muted">on a 10-point scale</small>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height: 320px;"><canvas id="gpaChart"></canvas></div>
+    </div>
   </div>
 
-  {% if data|length == 0 %}
-  <div class="alert info text-center">
-    <p style="margin: 0;">No academic data available yet. Grades will appear here once your courses are graded.</p>
-  </div>
-  {% else %}
-
-  <!-- Cumulative CGPA Display -->
-  <div
-    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 12px; text-align: center; margin-bottom: 2rem;">
-    <p style="margin: 0; color: white; opacity: 0.9; font-size: 1.1em;">Cumulative CGPA</p>
-    <p style="margin: 0.5rem 0 0 0; color: white; font-size: 4em; font-weight: 700;">
-      {{ cumulative_cgpa if cumulative_cgpa else 'N/A' }}
-    </p>
-  </div>
-
-  <div style="background: #F8FAFC; padding: 2rem; border-radius: var(--radius); margin-bottom: 1rem;">
-    <canvas id="gpaChart" style="max-height: 400px;"></canvas>
-  </div>
-
-  <!-- GPA Summary Table -->
-  <div style="overflow-x: auto;">
-    <table>
+  <div class="card flush">
+    <div class="card-header">
+      <h3>Per-semester breakdown</h3>
+    </div>
+    <table class="table-compact">
       <thead>
         <tr>
-          <th>Semester</th>
+          <th>Sem</th>
           <th>GPA</th>
           <th>Status</th>
         </tr>
@@ -39,15 +79,15 @@
       <tbody>
         {% for item in data %}
         <tr>
-          <td>Semester {{ item.semester }}</td>
-          <td><strong>{{ item.gpa }}</strong> / 10.0</td>
+          <td><span class="tag">{{ item.semester }}</span></td>
+          <td><strong>{{ item.gpa }}</strong> <small class="text-muted">/ 10.0</small></td>
           <td>
             {% if item.gpa >= 8.0 %}
-            <span class="badge approved">Excellent</span>
+              <span class="badge approved">Excellent</span>
             {% elif item.gpa >= 6.0 %}
-            <span class="badge pending">Good</span>
+              <span class="badge pending">Good</span>
             {% else %}
-            <span class="badge rejected">Needs Improvement</span>
+              <span class="badge rejected">Needs work</span>
             {% endif %}
           </td>
         </tr>
@@ -55,89 +95,50 @@
       </tbody>
     </table>
   </div>
-
-  <script id="gpa-data" type="application/json">
-      {{ data | tojson }}
-    </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <script>
-    const gpaData = JSON.parse(
-      document.getElementById('gpa-data').textContent
-    );
-
-    const semesters = gpaData.map(x => "Semester " + x.semester);
-    const gpas = gpaData.map(x => x.gpa);
-
-    new Chart(document.getElementById('gpaChart'), {
-      type: 'line',
-      data: {
-        labels: semesters,
-        datasets: [{
-          label: 'GPA',
-          data: gpas,
-          fill: true,
-          backgroundColor: 'rgba(79, 70, 229, 0.1)',
-          borderColor: 'rgb(79, 70, 229)',
-          borderWidth: 3,
-          tension: 0.4,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          pointBackgroundColor: 'rgb(79, 70, 229)',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            labels: {
-              font: { size: 14, family: 'Inter' },
-              padding: 20
-            }
-          },
-          tooltip: {
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 12,
-            titleFont: { size: 14 },
-            bodyFont: { size: 13 },
-            callbacks: {
-              label: function (context) {
-                return 'GPA: ' + context.parsed.y.toFixed(2) + ' / 10.0';
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 10,
-            ticks: {
-              stepSize: 1,
-              font: { size: 12 }
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
-            }
-          },
-          x: {
-            ticks: {
-              font: { size: 12 }
-            },
-            grid: {
-              display: false
-            }
-          }
-        }
-      }
-    });
-  </script>
-  {% endif %}
 </div>
 
+<script id="gpa-data" type="application/json">{{ data | tojson }}</script>
+{% endif %}
+{% endblock %}
+
+{% block body_end %}
+{% if data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  Chart.defaults.font.family = "system-ui, 'Inter', -apple-system, sans-serif";
+  Chart.defaults.color = '#475569';
+  const gpaData = JSON.parse(document.getElementById('gpa-data').textContent);
+  new Chart(document.getElementById('gpaChart'), {
+    type: 'line',
+    data: {
+      labels: gpaData.map(x => 'Sem ' + x.semester),
+      datasets: [{
+        label: 'GPA',
+        data: gpaData.map(x => x.gpa),
+        fill: true,
+        backgroundColor: 'rgba(99, 102, 241, 0.10)',
+        borderColor: '#4f46e5',
+        borderWidth: 2.5,
+        tension: 0.35,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: '#4f46e5',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => 'GPA: ' + c.parsed.y.toFixed(2) + ' / 10.0' } },
+      },
+      scales: {
+        y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 }, grid: { color: 'rgba(15,23,42,0.06)' } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
+</script>
+{% endif %}
 {% endblock %}

@@ -74,7 +74,7 @@
         <th>Section</th>
         <th>Sem</th>
         <th>Faculty</th>
-        <th>Roster</th>
+        <th>Credits</th>
         <th style="width:1%;"></th>
       </tr>
     </thead>
@@ -103,7 +103,7 @@
           {% endif %}
         </td>
         <td>
-          {{ s.enrolled_count }}{% if s.capacity %} / {{ s.capacity }}{% endif %}
+          <span class="tag">{{ s.credits }}</span>
           {% if s.capacity and s.enrolled_count >= s.capacity %}
             <span class="badge rejected" style="margin-left:6px;">Full</span>
           {% endif %}
@@ -202,11 +202,31 @@
       </button>
     </header>
     <div class="modal-body">
+      <input type="hidden" name="course_id" value="{{ s.course_id }}">
+
+      {# Read-only context strip — what the admin is editing. #}
+      <div style="display:flex; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+                  background: var(--surface-alt); border: 1px solid var(--border);
+                  border-radius: var(--r-md); margin-bottom: var(--sp-4);">
+        <div style="flex:1;">
+          <div class="label-muted">Course</div>
+          <div class="fw-600">{{ s.course_name }}</div>
+        </div>
+        <div>
+          <div class="label-muted">Credits</div>
+          <div class="fw-600">{{ s.credits }}</div>
+        </div>
+        <div>
+          <div class="label-muted">Currently enrolled</div>
+          <div class="fw-600">{{ s.enrolled_count }}</div>
+        </div>
+      </div>
+
       <div class="form-row">
-        <input type="hidden" name="course_id" value="{{ s.course_id }}">
         <div>
           <label>Section label</label>
           <input type="text" name="section_label" value="{{ s.section_label }}" maxlength="10" required>
+          <div class="form-help">Letters / digits / hyphens.</div>
         </div>
         <div>
           <label>Semester</label>
@@ -219,7 +239,7 @@
         <div style="grid-column: 1 / -1;">
           <label>Faculty</label>
           <select name="faculty_id">
-            <option value="">Unassigned</option>
+            <option value="">— Unassigned —</option>
             {% for f in faculty_list %}
             <option value="{{ f.faculty_id }}" {% if f.faculty_id == s.faculty_id %}selected{% endif %}>
               {{ f.dept_name }} — {{ f.name }}
@@ -229,11 +249,8 @@
         </div>
         <div>
           <label>Capacity</label>
-          <input type="number" name="capacity" value="{{ s.capacity or '' }}" min="1" max="500" placeholder="optional">
-        </div>
-        <div>
-          <label class="text-muted">Currently enrolled</label>
-          <div class="text-sm" style="padding-top:8px;">{{ s.enrolled_count }} students</div>
+          <input type="number" name="capacity" value="{{ s.capacity or '' }}" min="1" max="500" placeholder="No cap">
+          <div class="form-help">Leave blank for unlimited.</div>
         </div>
       </div>
     </div>
