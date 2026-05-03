@@ -1,1 +1,1 @@
-console.log("ERP frontend loaded successfully!");
+console.log("Lyceum frontend loaded successfully!");

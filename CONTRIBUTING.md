@@ -1,6 +1,6 @@
-# Contributing to Student ERP Management System
+# Contributing to Lyceum
 
-Thanks for your interest in contributing. This document describes the workflow for reporting issues and submitting changes.
+Thanks for your interest in contributing to Lyceum. This document describes the workflow for reporting issues and submitting changes.
 
 ## Getting Started
 
@@ -66,7 +66,7 @@ When filing an issue, please include:
 
 ## Security
 
-If you find a security vulnerability, **do not** open a public issue. Instead, contact the maintainer directly. See the [Security Notes](README.md#security-notes) in the README.
+If you find a security vulnerability, **do not** open a public issue. Follow the private reporting process in [`SECURITY.md`](SECURITY.md). Operator-facing hardening guidance lives in the [Security Notes](README.md#security-notes) section of the README.
 
 ## License
 

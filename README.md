@@ -1,6 +1,6 @@
-# Student ERP Management System
+# Lyceum
 
-A full-stack Enterprise Resource Planning (ERP) platform for educational institutions. The system provides role-based portals for **students**, **faculty**, and **administrators** to manage academic records, course enrollment, grading, student welfare requests, and institutional analytics.
+A full-stack academic management platform for educational institutions. Lyceum provides role-based portals for **students**, **faculty**, and **administrators** to manage academic records, course enrollment, grading, student welfare requests, and institutional analytics.
 
 Built with **Flask**, **MySQL**, and **Jinja2**, with Chart.js-powered dashboards and OTP-secured email authentication.
 
@@ -104,7 +104,7 @@ Most college workflows — checking grades, submitting a hostel request, updatin
                                    └─────────────────────┘
 ```
 
-A high-level ERD diagram is available in [`other/ERP.svg`](other/ERP.svg).
+A high-level ERD diagram is available in [`other/erd.svg`](other/erd.svg).
 
 ---
 
@@ -155,7 +155,7 @@ A high-level ERD diagram is available in [`other/ERP.svg`](other/ERP.svg).
 ├── docker-compose.yml        # Local stack: app + MySQL + Redis
 ├── .github/workflows/ci.yml  # GitHub Actions CI
 └── other/
-    └── ERP.svg               # Architecture/ERD diagram
+    └── erd.svg               # Architecture/ERD diagram
 ```
 
 ---
@@ -187,8 +187,8 @@ boot.
 
 ```bash
 # 1. Clone
-git clone https://github.com/aakri0/student-erp-management-system.git
-cd student-erp-management-system
+git clone https://github.com/aakri0/lyceum.git
+cd lyceum
 
 # 2. Virtual environment
 python3 -m venv venv
@@ -225,8 +225,8 @@ migrations are auto-loaded into MySQL on first boot via the
 `docker-entrypoint-initdb.d/` mount.
 
 ```bash
-git clone https://github.com/aakri0/student-erp-management-system.git
-cd student-erp-management-system
+git clone https://github.com/aakri0/lyceum.git
+cd lyceum
 cp .env.example .env
 # Set FLASK_SECRET_KEY, DB_PASSWORD, EMAIL_ADDRESS, EMAIL_PASSWORD.
 
@@ -488,6 +488,8 @@ Login flow: **email + password → 6-digit OTP sent via email → dashboard**.
 - Security headers (CSP, HSTS, X-Frame-Options=DENY, X-Content-Type-Options, Referrer-Policy) are set globally by Flask-Talisman; HSTS and force-https activate when `SESSION_COOKIE_SECURE=1`.
 - OTP and password-reset emails are dispatched on a background daemon thread, so a slow Gmail upstream cannot stall a request worker. Failures are logged via `logger.exception` (set `EMAIL_SEND_SYNC=1` in tests to surface errors).
 - `audit_logs` captures the originating IP (`X-Forwarded-For` aware) and User-Agent for every state-changing admin/faculty action.
+
+To report a suspected vulnerability privately, follow the disclosure process in [`SECURITY.md`](SECURITY.md).
 
 ---
 
