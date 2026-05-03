@@ -1,5 +1,12 @@
 # Lyceum
 
+[![CI](https://github.com/aakri0/Lyceum/actions/workflows/ci.yml/badge.svg)](https://github.com/aakri0/Lyceum/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-3.x-000000.svg)](https://flask.palletsprojects.com/)
+[![MySQL](https://img.shields.io/badge/mysql-8.0-4479a1.svg)](https://www.mysql.com/)
+[![Docker](https://img.shields.io/badge/docker-compose-2496ed.svg)](https://docs.docker.com/compose/)
+
 A full-stack academic management platform for educational institutions. Lyceum provides role-based portals for **students**, **faculty**, and **administrators** to manage academic records, course enrollment, grading, student welfare requests, and institutional analytics.
 
 Built with **Flask**, **MySQL**, and **Jinja2**, with Chart.js-powered dashboards and OTP-secured email authentication.
